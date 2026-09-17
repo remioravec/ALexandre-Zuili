@@ -1748,6 +1748,7 @@ window.GT3 = (function(){
           <div class="cal-dow"><span>Lu</span><span>Ma</span><span>Me</span><span>Je</span><span>Ve</span><span>Sa</span><span>Di</span></div>
           <div class="cal-grid" id="calGrid"></div>
           <div class="cal-legend"><span><i></i>Week-end — les créneaux partent le plus vite</span></div>
+          <p id="calNote" style="display:none;font-family:var(--data);font-size:11px;letter-spacing:.04em;color:var(--bone-dim);margin-top:12px"></p>
         </div>
         <div class="fgrid" style="margin-top:16px">
           <div class="fld"><label for="rvFlex">Flexibilité</label>
@@ -1778,6 +1779,8 @@ window.GT3 = (function(){
           <p class="rv-q">Votre demande de réservation</p>
           <p class="rv-hint">Vérifiez le récapitulatif. L'envoi ne déclenche aucun paiement.</p>
           <div class="rcap" id="rvBox"></div>
+          <input type="text" id="rvHp" name="hp" tabindex="-1" autocomplete="off" aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;opacity:0">
+          <p class="perr" id="errEnvoi"></p>
           <p class="rv-note">En envoyant, vous posez une option sur ce créneau. Nous confirmons la disponibilité de la 992.2 sous 24 heures et vous adressons le détail des tarifs et de la franchise.</p>
         </div>
         <div id="rvDone" class="rv-ok" style="display:none">
@@ -1902,9 +1905,97 @@ if(simC&&simF){
   const panes=[...rv.querySelectorAll('.rv-pane')],sts=[...rv.querySelectorAll('.rv-st')];
   const bar=document.getElementById('rvBar'),bPrev=document.getElementById('rvPrev'),bNext=document.getElementById('rvNext');
   let step=0,sent=false,lastFocus=null,picked=null;
+  /* ── branchement /api/dates : creneaux[nom du circuit] = Map(AAAA-MM-JJ -> entrée) ── */
+  let creneaux=null,idem=null,ouverture=0,chargement=null;
   let cur=new Date();cur.setDate(1);cur.setHours(0,0,0,0);
   const today=new Date();today.setHours(0,0,0,0);
   const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+
+  function iso(dt){
+    return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  }
+  function circuitChoisi(){
+    const r=rv.querySelector('input[name="rvc"]:checked');
+    return r?r.value:null;
+  }
+  function creneau(nom,dt){
+    if(!creneaux||!dt)return null;
+    const m=creneaux[nom];
+    return m?(m.get(iso(dt))||null):null;
+  }
+  /* Les jours absents de /api/dates sont désactivés ; les circuits sans date
+     ouverte sortent du sélecteur. Si l'API ne répond pas, le calendrier reste
+     ouvert et la note le dit : mieux vaut une demande à vérifier qu'un tunnel
+     mort. Passer STRICT à true pour refuser toute date sans confirmation. */
+  const STRICT=false;
+  function chargerDates(){
+    if(chargement)return chargement;
+    chargement=fetch('/api/dates',{headers:{accept:'application/json'}})
+      .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){
+        const par={};
+        (d.dates||[]).forEach(function(x){
+          if(!par[x.nom])par[x.nom]=new Map();
+          par[x.nom].set(x.date,x);
+        });
+        creneaux=par;
+        filtrerCircuits();
+        majNote();
+        drawCal();
+      })
+      .catch(function(e){
+        creneaux=null;
+        console.warn('[dates] disponibilités indisponibles :',e.message);
+        majNote();
+        drawCal();
+      });
+    return chargement;
+  }
+  function filtrerCircuits(){
+    if(!creneaux)return;
+    const radios=[...rv.querySelectorAll('input[name="rvc"]')];
+    let coche=null;
+    radios.forEach(function(r){
+      const ouvert=!!creneaux[r.value];
+      const lab=r.closest('label');
+      if(lab)lab.style.display=ouvert?'':'none';
+      r.disabled=!ouvert;
+      if(ouvert&&!coche)coche=r;
+    });
+    const actuel=radios.find(function(r){return r.checked;});
+    if((!actuel||actuel.disabled)&&coche){coche.checked=true;rvOptions();}
+    /* Aucune date ouverte nulle part : sans ce message, l'étape 1 est un
+       écran vide sans explication (fin de saison, base non remplie). */
+    let vide=document.getElementById('rvVide');
+    if(!coche){
+      if(!vide){
+        vide=document.createElement('p');
+        vide.id='rvVide';vide.className='rv-hint';
+        vide.style.cssText='margin:0;padding:18px;border:1px solid var(--line);color:var(--bone)';
+        vide.innerHTML='Aucune date n\'est ouverte à la réservation en ligne pour le moment.<br>'+
+          'Appelez-nous au <b>06 38 68 59 61</b> : nous regardons ensemble les prochaines disponibilités.';
+        document.getElementById('rvC').appendChild(vide);
+      }
+      vide.style.display='block';
+      bNext.disabled=true;
+    }else if(vide){
+      vide.style.display='none';bNext.disabled=false;
+    }
+  }
+  function majNote(){
+    const n=document.getElementById('calNote');
+    if(!n)return;
+    if(!creneaux){
+      n.textContent='Disponibilités non vérifiées — votre demande sera confirmée sous 24 h.';
+      n.style.display='block';return;
+    }
+    const nom=circuitChoisi();
+    const m=nom?creneaux[nom]:null;
+    const nb=m?m.size:0;
+    n.textContent=nb?(nb>1?nb+' dates ouvertes sur ce circuit.':'1 date ouverte sur ce circuit.')
+                    :'Aucune date ouverte sur ce circuit pour le moment.';
+    n.style.display='block';
+  }
 
   function drawCal(){
     const y=cur.getFullYear(),m=cur.getMonth();
@@ -1919,6 +2010,11 @@ if(simC&&simF){
       const dow=dt.getDay();
       if(dow===0||dow===6)b.classList.add('wk');
       if(dt<today)b.disabled=true;
+      if(creneaux){
+        const e=creneau(circuitChoisi(),dt);
+        if(!e||e.places<=0)b.disabled=true;
+        else b.title=e.nom+' — '+(e.places>1?e.places+' places':'1 place');
+      }else if(STRICT){b.disabled=true;}
       if(picked&&dt.getTime()===picked.getTime())b.classList.add('sel');
       b.addEventListener('click',()=>{picked=dt;document.getElementById('errDate').classList.remove('on');drawCal();});
       g.appendChild(b);
@@ -1933,6 +2029,13 @@ if(simC&&simF){
     if(pre&&pre.circuit){rvOptions();}
     if(pre&&pre.km){const r=[...rv.querySelectorAll('input[name="rvf"]')].find(x=>x.value===String(pre.km));if(r)r.checked=true;}
     rvOptions();go(0,true);drawCal();
+    idem=(crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2);
+    ouverture=Date.now();
+    sent=false;
+    document.getElementById('rvRecap').style.display='';
+    document.getElementById('rvDone').style.display='none';
+    document.getElementById('errEnvoi').classList.remove('on');
+    chargerDates();
     setTimeout(()=>document.getElementById('rvClose').focus(),340);
   }
   function closeRV(){
@@ -1950,9 +2053,23 @@ if(simC&&simF){
     if(n===3&&!sent)recap();
     rv.querySelector('.rv-body').scrollTop=0;
   }
+  /* #errEnvoi vit dans le panneau 3 : invisible dès qu'on renvoie
+     l'utilisateur au calendrier. Les messages qui ramènent à l'étape date
+     passent donc par #errDate, qui est sur le bon panneau. */
+  const ERR_DATE_DEFAUT=document.getElementById('errDate').textContent;
+  function erreurDate(txt){
+    const e=document.getElementById('errDate');
+    e.textContent=txt||ERR_DATE_DEFAUT;
+    e.classList.add('on');
+  }
   function bad(id,is){document.getElementById(id).closest('.fld').classList.toggle('bad',is);return !is;}
   function valid(n){
-    if(n===1){const ok=!!picked;document.getElementById('errDate').classList.toggle('on',!ok);return ok;}
+    if(n===1){
+      const ok=!!picked,e=document.getElementById('errDate');
+      e.textContent=ERR_DATE_DEFAUT;
+      e.classList.toggle('on',!ok);
+      return ok;
+    }
     if(n===2){
       let ok=true;
       ok=bad('rvPre',!document.getElementById('rvPre').value.trim())&&ok;
@@ -1977,7 +2094,12 @@ if(simC&&simF){
     }).join('');
     if(!box.querySelector('input:checked')) box.querySelector('input').checked=true;
   }
-  rv.querySelectorAll('input[name="rvc"]').forEach(r=>r.addEventListener('change',rvOptions));
+  rv.querySelectorAll('input[name="rvc"]').forEach(r=>r.addEventListener('change',function(){
+    rvOptions();
+    /* une date retenue sur le circuit précédent peut ne pas exister ici */
+    if(creneaux&&picked&&!creneau(circuitChoisi(),picked))picked=null;
+    majNote();drawCal();
+  }));
   rv.querySelectorAll('.fld input').forEach(el=>el.addEventListener('input',()=>el.closest('.fld').classList.remove('bad')));
 
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
@@ -2004,16 +2126,83 @@ if(simC&&simF){
       rows.map(r=>'<div class="rw"><span class="k">'+r[0]+'</span><span class="v">'+r[1]+'</span></div>').join('')+
       '<div class="rw tt"><span class="k">Tarif TTC</span><span class="v">'+GT3.eur(x.prix)+'</span></div>';
   }
-  bNext.addEventListener('click',()=>{
-    if(step<3){if(valid(step))go(step+1);return;}
-    if(sent){closeRV();return;}
-    /* ── point de branchement backend / e-mail / webhook ── */
+  function confirmer(){
     sent=true;
     document.getElementById('rvRecap').style.display='none';
     document.getElementById('rvDone').style.display='block';
     document.getElementById('rvDoneMsg').textContent=
       'Merci '+document.getElementById('rvPre').value.trim()+'. Nous vérifions la disponibilité de la 992.2 pour le '+fmt(picked)+' et revenons vers vous sous 24 heures à '+document.getElementById('rvMail').value.trim()+'.';
-    bPrev.style.visibility='hidden';bNext.textContent='Fermer';
+    bPrev.style.visibility='hidden';bNext.textContent='Fermer';bNext.disabled=false;
+  }
+  function messageErreur(code,d){
+    if(code===422&&d&&d.erreur==='km_incompatible')return 'Cette distance n\'est pas proposée sur ce circuit.';
+    if(code===422)return 'Une information du formulaire est invalide. Vérifiez vos coordonnées.';
+    if(code===429)return 'Trop de tentatives. Patientez quelques minutes avant de réessayer.';
+    if(code===503)return 'Le service de réservation est momentanément indisponible. Appelez-nous au 06 38 68 59 61.';
+    return 'Envoi impossible pour le moment. Appelez-nous au 06 38 68 59 61.';
+  }
+  bNext.addEventListener('click',function(){
+    if(step<3){if(valid(step))go(step+1);return;}
+    if(sent){closeRV();return;}
+
+    const err=document.getElementById('errEnvoi');
+    err.classList.remove('on');
+    const nom=circuitChoisi();
+    const km=parseInt(rv.querySelector('input[name="rvf"]:checked').value,10);
+    const entree=creneau(nom,picked);
+
+    /* Sans créneau identifié, le serveur ne peut ni relire la date dans Notion
+       ni la verrouiller : on renvoie l'utilisateur à l'étape du calendrier. */
+    if(!entree){
+      if(creneaux){
+        picked=null;go(1);
+        erreurDate('Cette date n\'est plus ouverte sur ce circuit. Choisissez-en une autre.');
+      }else{
+        err.textContent='Les disponibilités n\'ont pas pu être vérifiées. Appelez-nous au 06 38 68 59 61.';
+        err.classList.add('on');
+      }
+      return;
+    }
+
+    bNext.disabled=true;bNext.textContent='Envoi…';
+    fetch('/api/reservation',{
+      method:'POST',
+      headers:{'content-type':'application/json','idempotency-key':idem},
+      body:JSON.stringify({
+        trackdayId:entree.id,
+        km:km,
+        prenom:document.getElementById('rvPre').value.trim(),
+        nom:document.getElementById('rvNom').value.trim(),
+        email:document.getElementById('rvMail').value.trim(),
+        telephone:document.getElementById('rvTel').value.trim(),
+        experience:document.getElementById('rvNiv').value,
+        flexibilite:document.getElementById('rvFlex').value,
+        accompagnants:document.getElementById('rvPax').value,
+        message:document.getElementById('rvMsg').value.trim()||undefined,
+        hp:document.getElementById('rvHp').value,
+        ouvertureMs:ouverture
+      })
+    }).then(function(r){
+      if(r.status===201){confirmer();return null;}
+      if(r.status===409){
+        picked=null;
+        chargement=null;creneaux=null;
+        chargerDates().then(function(){
+          go(1);
+          erreurDate('Ce créneau vient d\'être pris. Choisissez une autre date.');
+        });
+        return null;
+      }
+      return r.json().catch(function(){return {};}).then(function(d){
+        err.textContent=messageErreur(r.status,d);
+        err.classList.add('on');
+      });
+    }).catch(function(){
+      err.textContent='Envoi impossible. Vérifiez votre connexion et réessayez.';
+      err.classList.add('on');
+    }).then(function(){
+      if(!sent){bNext.disabled=false;bNext.textContent='Envoyer ma demande';}
+    });
   });
   bPrev.addEventListener('click',()=>{if(step>0)go(step-1);});
   document.getElementById('rvClose').addEventListener('click',closeRV);

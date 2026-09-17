@@ -4,10 +4,14 @@ Maquette front complète, une page, deux vues routées côté client.
 Hébergé en statique sur Vercel, déploiement à chaque push.
 
 ## Contenu
-- `index.html` — tout le front : HTML, CSS et JS en ligne, 169 Ko
-- `assets/` — 22 images WebP, 924 Ko
-- `vercel.json` — hébergement statique : rewrite catch-all + en-têtes de sécurité
-- `STACK-RESERVATION.md` — spécification du moteur de réservation, non implémenté
+- `public/index.html` — tout le front : HTML, CSS et JS en ligne, 172 Ko
+- `public/assets/` — 22 images WebP, 924 Ko
+- `src/app/api/` — les deux route handlers : `/api/dates`, `/api/reservation`
+- `src/lib/` — configuration, grille tarifaire, Notion, Redis, agenda, e-mails
+- `next.config.mjs` — routage : page statique, catch-all hors `/api`
+- `vercel.json` — en-têtes de sécurité et cache des images
+- `STACK-RESERVATION.md` — la spécification d'origine
+- `.env.example` — les variables attendues, sans aucune valeur secrète
 
 ## Architecture du fichier
 - **CSS** : un seul bloc `<style>`, DA Neo Oak Green (`--oak`, `--bone`, `--accent` blanc)
@@ -37,24 +41,63 @@ le JSON-LD `Organization`, le pied de page, les libellés ARIA, les titres du ro
 le favicon et l'avatar du bouton d'appel. « GL Coaching Racing » et le nom de
 Guillaume Léger sont conservés : ils désignent le moniteur, pas l'exploitant du site.
 
+## Moteur de réservation
+
+Next.js 15, App Router, **route handlers uniquement** : aucun rendu côté
+serveur, la page reste le fichier statique de `public/`.
+
+| Route | Rôle |
+|---|---|
+| `GET /api/dates` | les dates ouvertes de la base Notion, cache 5 min |
+| `POST /api/reservation` | page Notion + événement d'agenda + 2 e-mails |
+
+**Le tarif n'est jamais reçu du client** : il est recalculé dans
+`src/lib/circuits.ts` à partir du circuit et de la distance. Toute valeur
+envoyée par le front est ignorée. La grille est dupliquée volontairement entre
+`window.GT3` (affichage) et ce module (autorité).
+
+**Schéma Notion non confirmé.** `src/lib/notion-map.ts` est le SEUL point de
+contact avec les noms de propriétés. Si le schéma réel diffère, corriger ce
+fichier — jamais le code appelant. Une propriété absente remonte une erreur
+explicite, une date dont le circuit est inconnu est ignorée et journalisée.
+
+**Configuration incomplète** : la lecture des variables est paresseuse, donc
+`next build` passe sans secret, et une variable absente fait répondre `503`
+avec son nom. Voir `.env.example`.
+
+**Dégradé** : si `/api/dates` ne répond pas, le calendrier reste ouvert et le
+dit (« Disponibilités non vérifiées ») plutôt que de bloquer le tunnel. Passer
+la constante `STRICT` à `true` dans `public/index.html` pour refuser toute date
+non confirmée. Si aucune date n'est ouverte, le tunnel l'annonce et renvoie au
+téléphone.
+
 ## Déploiement
-Projet Vercel `a-lexandre-zuili`, lié à ce dépôt. Aucune commande de build, aucun
-dossier de sortie. Les fichiers statiques sont servis avant les rewrites, donc
-`/assets/*.webp` est bien servi malgré le catch-all.
+Projet Vercel `apex-drive` (https://apex-drive-one.vercel.app), lié à ce dépôt.
+Framework détecté : Next.js. Les fichiers de `public/` et les routes `/api/*`
+sont résolus avant les réécritures, donc `/assets/*.webp` et l'API ne sont
+jamais détournés.
 
 Les routes non construites (`/formules/…`, `/circuits/…`, `/reservation/`) sont
-renvoyées sur `index.html` par le rewrite : le routeur client retombe sur la vue
-d'accueil au lieu d'une 404.
+renvoyées sur la page par le catch-all de `next.config.mjs` : le routeur client
+retombe sur la vue d'accueil au lieu d'une 404. Le catch-all exclut `/api/`,
+sans quoi une route d'API mal orthographiée renverrait la page en HTML avec un
+200.
 
 ### Développement local
 ```sh
-python3 -m http.server 8000
-# puis http://localhost:8000
+npm install
+npm run dev       # http://localhost:3000
+npm run typecheck
+npm run build
 ```
 
 ## À faire avant mise en ligne
 - Remplacer `https://votresite.fr` dans les balises canoniques, Open Graph et JSON-LD
-- Brancher `/api/dates` et `/api/reservation` (voir `STACK-RESERVATION.md`)
+- Renseigner les variables d'environnement (`.env.example`) — sans elles, l'API répond 503
+- Créer la base Notion « Réservations » (§4.2) et y partager l'intégration
+- Confirmer le schéma réel de la base Trackday, puis corriger `src/lib/notion-map.ts`
+- Trancher les TODO-DATA restants : capacité du « ou à deux », battement entre circuits,
+  invitation du client à l'événement d'agenda, demande ou réservation ferme
 - 6 circuits sur 8 utilisent un visuel d'illustration, pas une photo du lieu réel
 - Les 6 avis Google sont fictifs : à remplacer avant publication
 - En production, séparer les 2 vues en 2 URL réelles — le routeur client ne remplace pas des pages
