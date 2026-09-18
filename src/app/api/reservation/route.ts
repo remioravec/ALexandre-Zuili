@@ -34,6 +34,13 @@ type Reponse = {
   circuit: string;
   formule: string;
   tarif: number;
+  /**
+   * État des notifications. Les journaux d'exécution Vercel ne sont pas
+   * toujours accessibles ; sans ce champ, un échec d'e-mail est invisible
+   * depuis l'extérieur puisque la compensation renvoie quand même 201.
+   * Le front l'ignore, il sert au diagnostic.
+   */
+  notifications: { mail: 'ok' | 'echec'; agenda: 'ok' | 'absent' | 'echec' };
 };
 
 function origineAutorisee(req: NextRequest): boolean {
@@ -225,10 +232,12 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    let detailMail: string | null = null;
     try {
       await Promise.all([mailClient(demande), mailInterne({ ...demande, lienAgenda })]);
     } catch (e) {
       echecs.push(SYNC.echecMail);
+      detailMail = e instanceof Error ? e.message.split('\n')[0]!.slice(0, 200) : String(e);
       console.error(`[reservation] ${ref} échec mail`, e);
     }
 
@@ -250,6 +259,10 @@ export async function POST(req: NextRequest) {
       circuit: t.circuit.nom,
       formule: offre.nom,
       tarif: offre.prix,
+      notifications: {
+        mail: echecs.includes(SYNC.echecMail) ? 'echec' : 'ok',
+        agenda: !agendaConfigure() ? 'absent' : echecs.includes(SYNC.echecAgenda) ? 'echec' : 'ok',
+      },
     };
 
     // Journal sans données personnelles (§9).
@@ -259,7 +272,16 @@ export async function POST(req: NextRequest) {
       }`,
     );
 
-    return NextResponse.json(reponse, { status: 201 });
+    // Le détail de l'erreur n'est rendu qu'à un appelant qui présente le
+    // jeton de diagnostic : il peut nommer un hôte SMTP ou une adresse.
+    const diag =
+      detailMail !== null &&
+      process.env.DIAG_TOKEN &&
+      req.headers.get('x-diag') === process.env.DIAG_TOKEN;
+
+    return NextResponse.json(diag ? { ...reponse, mailErreur: detailMail } : reponse, {
+      status: 201,
+    });
   } catch (e) {
     if (e instanceof EnvManquante || e instanceof ProprieteManquante) {
       console.error('[reservation] configuration incomplète :', e.message);
