@@ -27,7 +27,20 @@ export async function GET() {
 
     return NextResponse.json(
       { dates, genere: new Date().toISOString() },
-      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=60' } },
+      {
+        headers: {
+          // Vercel ne conserve pas `s-maxage` sur une route `force-dynamic` :
+          // la réponse repartait en `cache-control: public` seul, donc mise en
+          // cache heuristique par le CDN, et une date ajoutée dans Notion
+          // n'apparaissait qu'au bout d'un délai imprévisible.
+          //
+          // On sépare donc les deux étages : le navigateur revalide à chaque
+          // fois, le CDN garde 30 s — assez pour absorber une rafale, assez
+          // court pour qu'une modification de l'agenda se voie tout de suite.
+          'Cache-Control': 'public, max-age=0, must-revalidate',
+          'CDN-Cache-Control': 'max-age=30, stale-while-revalidate=60',
+        },
+      },
     );
   } catch (e) {
     if (e instanceof EnvManquante || e instanceof ProprieteManquante) {
