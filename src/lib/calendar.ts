@@ -1,6 +1,20 @@
 import { google } from 'googleapis';
-import { env } from './env';
+import { env, envOptionnel } from './env';
 import type { Palier } from './circuits';
+
+/**
+ * L'agenda est OPTIONNEL : sans compte de service configuré, la réservation
+ * est enregistrée et notifiée normalement, et l'absence d'événement est
+ * journalisée. Renseigner les trois variables l'active sans changement de
+ * code.
+ */
+export function agendaConfigure(): boolean {
+  return (
+    !!envOptionnel('GOOGLE_SA_EMAIL') &&
+    !!envOptionnel('GOOGLE_SA_PRIVATE_KEY') &&
+    !!envOptionnel('GOOGLE_CALENDAR_ID')
+  );
+}
 
 /** colorId par palier (§7). */
 const COULEUR: Record<Palier, string> = { A: '2', B: '5', C: '6' };

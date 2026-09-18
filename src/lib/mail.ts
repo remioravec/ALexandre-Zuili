@@ -1,10 +1,80 @@
 import { Resend } from 'resend';
+import nodemailer, { type Transporter } from 'nodemailer';
 import { env, envOptionnel } from './env';
+
+/**
+ * Deux voies d'envoi, une seule à configurer.
+ *
+ *  - RESEND_API_KEY → Resend. Propre et scalable, mais tant que le domaine
+ *    n'est pas vérifié, Resend n'accepte d'écrire qu'à l'adresse du
+ *    titulaire du compte : suffisant pour la notification interne, pas pour
+ *    le client.
+ *  - SMTP_USER + SMTP_PASS → SMTP Gmail (mot de passe d'application). Écrit
+ *    à n'importe qui immédiatement, ~500 envois par jour. C'est le repli
+ *    prévu au §2 de la spéc, et la voie la plus rapide à ouvrir.
+ *
+ * Si aucune n'est configurée, `env()` lève une erreur nommant RESEND_API_KEY.
+ */
+export type Voie = 'resend' | 'smtp' | 'aucune';
+export function voieMail(): Voie {
+  if (envOptionnel('RESEND_API_KEY')) return 'resend';
+  if (envOptionnel('SMTP_USER') && envOptionnel('SMTP_PASS')) return 'smtp';
+  return 'aucune';
+}
 
 let resendClient: Resend | null = null;
 function resend(): Resend {
   if (!resendClient) resendClient = new Resend(env('RESEND_API_KEY'));
   return resendClient;
+}
+
+let smtp: Transporter | null = null;
+function transport(): Transporter {
+  if (!smtp) {
+    smtp = nodemailer.createTransport({
+      host: envOptionnel('SMTP_HOST') ?? 'smtp.gmail.com',
+      port: Number(envOptionnel('SMTP_PORT') ?? 465),
+      secure: (envOptionnel('SMTP_PORT') ?? '465') === '465',
+      auth: { user: env('SMTP_USER'), pass: env('SMTP_PASS') },
+    });
+  }
+  return smtp;
+}
+
+type Envoi = {
+  to: string | string[];
+  subject: string;
+  text: string;
+  html: string;
+  replyTo?: string;
+};
+
+/** Expéditeur : MAIL_FROM, ou l'adresse SMTP elle-même en repli. */
+function expediteur(): string {
+  return envOptionnel('MAIL_FROM') ?? env('SMTP_USER');
+}
+
+async function envoyer(m: Envoi): Promise<void> {
+  if (voieMail() === 'smtp') {
+    await transport().sendMail({
+      from: `Apex Drive <${expediteur()}>`,
+      to: Array.isArray(m.to) ? m.to.join(', ') : m.to,
+      subject: m.subject,
+      text: m.text,
+      html: m.html,
+      ...(m.replyTo ? { replyTo: m.replyTo } : {}),
+    });
+    return;
+  }
+  const r = await resend().emails.send({
+    from: expediteur(),
+    to: m.to,
+    subject: m.subject,
+    text: m.text,
+    html: m.html,
+    ...(m.replyTo ? { replyTo: m.replyTo } : {}),
+  });
+  if (r.error) throw new Error(`Resend : ${r.error.message}`);
 }
 
 export type Demande = {
@@ -98,8 +168,7 @@ export async function mailClient(d: Demande): Promise<void> {
     `Une question ? ${TEL}`,
   ].join('\n');
 
-  await resend().emails.send({
-    from: env('MAIL_FROM'),
+  await envoyer({
     to: d.email,
     subject: 'Votre demande de réservation — Porsche 911 GT3 992.2',
     text: texte,
@@ -132,8 +201,7 @@ export async function mailInterne(d: Demande): Promise<void> {
     `<p style="margin:0 0 8px"><a href="${d.lienNotion}">Ouvrir la page Notion</a></p>` +
     (d.lienAgenda ? `<p style="margin:0"><a href="${d.lienAgenda}">Ouvrir l'événement d'agenda</a></p>` : '');
 
-  await resend().emails.send({
-    from: env('MAIL_FROM'),
+  await envoyer({
     to: destinataires,
     replyTo: d.email, // répondre au client en un clic
     subject: `Nouvelle demande — ${d.circuit} — ${dateLongue(d.date)}`,

@@ -2,6 +2,7 @@ import { Client, isFullPage } from '@notionhq/client';
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import { env } from './env';
 import {
+  PROP_RESERVATION,
   PROP_TRACKDAY,
   capacite,
   etatsPubliables,
@@ -146,6 +147,24 @@ export async function datesOuvertes(): Promise<Trackday[]> {
   }
 
   return retenus;
+}
+
+/**
+ * Idempotence sans Redis : cherche une réservation déjà enregistrée sous
+ * cette clé. C'est la base Notion qui fait foi, donc la garantie tient même
+ * si le cache mémoire a été perdu (démarrage à froid, autre instance).
+ */
+export async function reservationExistante(
+  cle: string,
+): Promise<{ id: string; url: string } | null> {
+  const r = await notion().databases.query({
+    database_id: env('NOTION_DB_RESERVATIONS'),
+    filter: { property: PROP_RESERVATION.idempotency, rich_text: { equals: cle } },
+    page_size: 1,
+  });
+  const p = r.results[0];
+  if (!p || !isFullPage(p)) return null;
+  return { id: p.id, url: p.url };
 }
 
 /** Relit une page sans cache (§6, étape 3) et revalide sa mise en vente. */

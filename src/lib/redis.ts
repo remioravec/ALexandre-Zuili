@@ -1,13 +1,31 @@
 import { Redis } from '@upstash/redis';
 import { Ratelimit } from '@upstash/ratelimit';
-import { env } from './env';
+import { envOptionnel } from './env';
+
+/**
+ * Upstash est OPTIONNEL.
+ *
+ * Sans lui, le service reste opérationnel mais avec des garanties réduites,
+ * et le dit dans le journal :
+ *   - limitation de débit en mémoire, donc par instance et remise à zéro à
+ *     chaque démarrage à froid — freine un curieux, pas une attaque ;
+ *   - pas de verrou distribué : deux envois vraiment simultanés sur la même
+ *     date peuvent passer tous les deux. La relecture Notion et le contrôle
+ *     d'idempotence (dans notion.ts) restent en place.
+ * Renseigner UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN rétablit les
+ * deux sans changement de code.
+ */
+export function redisConfigure(): boolean {
+  return !!envOptionnel('UPSTASH_REDIS_REST_URL') && !!envOptionnel('UPSTASH_REDIS_REST_TOKEN');
+}
 
 let redisClient: Redis | null = null;
-export function redis(): Redis {
+function redis(): Redis | null {
+  if (!redisConfigure()) return null;
   if (!redisClient) {
     redisClient = new Redis({
-      url: env('UPSTASH_REDIS_REST_URL'),
-      token: env('UPSTASH_REDIS_REST_TOKEN'),
+      url: envOptionnel('UPSTASH_REDIS_REST_URL')!,
+      token: envOptionnel('UPSTASH_REDIS_REST_TOKEN')!,
     });
   }
   return redisClient;
@@ -16,56 +34,59 @@ export function redis(): Redis {
 let parIp: Ratelimit | null = null;
 let parMail: Ratelimit | null = null;
 
-/** 5 requêtes / 10 min / IP (§9). */
-export function limiteParIp(): Ratelimit {
-  if (!parIp) {
-    parIp = new Ratelimit({
-      redis: redis(),
-      limiter: Ratelimit.slidingWindow(5, '10 m'),
-      prefix: 'rl:ip',
-    });
+/** Repli en mémoire : fenêtre glissante simple, vidée aux démarrages à froid. */
+const memoire = new Map<string, number[]>();
+function limiteMemoire(cle: string, max: number, fenetreMs: number): boolean {
+  const t = Date.now();
+  const vus = (memoire.get(cle) ?? []).filter((x) => t - x < fenetreMs);
+  if (vus.length >= max) {
+    memoire.set(cle, vus);
+    return false;
   }
-  return parIp;
+  vus.push(t);
+  memoire.set(cle, vus);
+  if (memoire.size > 5000) memoire.clear(); // garde-fou mémoire
+  return true;
+}
+
+/** 5 requêtes / 10 min / IP (§9). */
+export async function autoriseIp(ip: string): Promise<boolean> {
+  const r = redis();
+  if (!r) return limiteMemoire(`ip:${ip}`, 5, 10 * 60 * 1000);
+  if (!parIp) {
+    parIp = new Ratelimit({ redis: r, limiter: Ratelimit.slidingWindow(5, '10 m'), prefix: 'rl:ip' });
+  }
+  return (await parIp.limit(ip)).success;
 }
 
 /** 3 requêtes / heure / adresse e-mail (§9). */
-export function limiteParMail(): Ratelimit {
+export async function autoriseMail(email: string): Promise<boolean> {
+  const r = redis();
+  if (!r) return limiteMemoire(`mail:${email}`, 3, 60 * 60 * 1000);
   if (!parMail) {
-    parMail = new Ratelimit({
-      redis: redis(),
-      limiter: Ratelimit.slidingWindow(3, '1 h'),
-      prefix: 'rl:mail',
-    });
+    parMail = new Ratelimit({ redis: r, limiter: Ratelimit.slidingWindow(3, '1 h'), prefix: 'rl:mail' });
   }
-  return parMail;
+  return (await parMail.limit(email)).success;
 }
 
 /**
- * Verrou anti-doublon : `SET NX EX 30` sur la date (§6, étape 2).
- * Deux envois simultanés sur la même date → un 201, un 409.
+ * Verrou anti-doublon : `SET NX EX 30` (§6, étape 2).
+ * Sans Redis, renvoie true — l'unicité repose alors sur la relecture Notion
+ * et sur le contrôle d'idempotence.
  */
 export async function prendreVerrou(trackdayId: string): Promise<boolean> {
-  const r = await redis().set(`reservation:${trackdayId}`, Date.now(), { nx: true, ex: 30 });
-  return r === 'OK';
+  const r = redis();
+  if (!r) return true;
+  return (await r.set(`reservation:${trackdayId}`, Date.now(), { nx: true, ex: 30 })) === 'OK';
 }
 
 export async function libererVerrou(trackdayId: string): Promise<void> {
+  const r = redis();
+  if (!r) return;
   try {
-    await redis().del(`reservation:${trackdayId}`);
+    await r.del(`reservation:${trackdayId}`);
   } catch (e) {
     // Le verrou expire seul en 30 s : un échec de libération ne casse rien.
     console.warn('[verrou] libération impossible', e);
   }
-}
-
-/**
- * Idempotence : mémorise la réponse d'une clé déjà traitée pour que deux
- * envois de la même `Idempotency-Key` ne créent qu'une seule page Notion.
- */
-export async function reponseIdempotente<T>(cle: string): Promise<T | null> {
-  return (await redis().get<T>(`idem:${cle}`)) ?? null;
-}
-
-export async function memoriserIdempotence(cle: string, valeur: unknown): Promise<void> {
-  await redis().set(`idem:${cle}`, valeur, { ex: 60 * 60 * 24 });
 }

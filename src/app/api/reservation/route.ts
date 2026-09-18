@@ -1,20 +1,13 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { isFullPage } from '@notionhq/client';
-import { notion, relireTrackday, ProprieteManquante } from '@/lib/notion';
+import { notion, relireTrackday, reservationExistante, ProprieteManquante } from '@/lib/notion';
 import { PROP_RESERVATION, STATUT_RESERVATION, SYNC, propPlaces } from '@/lib/notion-map';
 import { tarif, compris } from '@/lib/circuits';
-import { creerEvenement } from '@/lib/calendar';
+import { creerEvenement, agendaConfigure } from '@/lib/calendar';
 import { mailClient, mailInterne, type Demande } from '@/lib/mail';
 import { reference } from '@/lib/reference';
-import {
-  limiteParIp,
-  limiteParMail,
-  prendreVerrou,
-  libererVerrou,
-  reponseIdempotente,
-  memoriserIdempotence,
-} from '@/lib/redis';
+import { autoriseIp, autoriseMail, prendreVerrou, libererVerrou } from '@/lib/redis';
 import { env, EnvManquante, reservationFerme } from '@/lib/env';
 
 export const dynamic = 'force-dynamic';
@@ -66,13 +59,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Même clé rejouée : une seule page Notion (test d'acceptation n° 4).
-    const deja = await reponseIdempotente<Reponse>(cle);
-    if (deja) return NextResponse.json(deja, { status: 201 });
-
     // ── 1. Rate limit + honeypot + validation ──
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'inconnue';
-    if (!(await limiteParIp().limit(ip)).success) {
+    if (!(await autoriseIp(ip))) {
       return NextResponse.json({ erreur: 'trop_de_requetes' }, { status: 429 });
     }
 
@@ -90,8 +79,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ erreur: 'trop_rapide' }, { status: 429 });
     }
 
-    if (!(await limiteParMail().limit(b.email.toLowerCase())).success) {
+    if (!(await autoriseMail(b.email.toLowerCase()))) {
       return NextResponse.json({ erreur: 'trop_de_requetes' }, { status: 429 });
+    }
+
+    // Même clé rejouée : une seule page Notion (test d'acceptation n° 4).
+    // Placé APRÈS la validation : un robot qui remplit le honeypot ne doit pas
+    // déclencher une requête Notion. La vérification porte sur la base, pas
+    // sur un cache, donc elle tient sans Redis et après un démarrage à froid.
+    const deja = await reservationExistante(cle);
+    if (deja) {
+      console.log(`[reservation] clé ${cle} déjà traitée -> ${deja.id}`);
+      return NextResponse.json({ reference: reference(deja.id), rejouee: true }, { status: 201 });
     }
 
     // ── 2. Verrou anti-doublon ──
@@ -130,8 +129,11 @@ export async function POST(req: NextRequest) {
         [PROP_RESERVATION.distance]: { number: offre.km },
         [PROP_RESERVATION.tarif]: { number: offre.prix },
         [PROP_RESERVATION.prenom]: { rich_text: [{ text: { content: b.prenom } }] },
-        [PROP_RESERVATION.email]: { rich_text: [{ text: { content: b.email } }] },
-        [PROP_RESERVATION.telephone]: { rich_text: [{ text: { content: b.telephone } }] },
+        [PROP_RESERVATION.nomClient]: { rich_text: [{ text: { content: b.nom } }] },
+        // Types réels de la base créée le 18/09/2026 : email et phone_number,
+        // pas du texte — Notion rend ainsi le contact cliquable.
+        [PROP_RESERVATION.email]: { email: b.email },
+        [PROP_RESERVATION.telephone]: { phone_number: b.telephone },
         [PROP_RESERVATION.experience]: { select: { name: b.experience } },
         [PROP_RESERVATION.flexibilite]: { select: { name: b.flexibilite } },
         [PROP_RESERVATION.accompagnants]: { select: { name: b.accompagnants } },
@@ -192,28 +194,35 @@ export async function POST(req: NextRequest) {
     let lienAgenda: string | null = null;
     const echecs: string[] = [];
 
-    try {
-      lienAgenda = await creerEvenement({
-        date: t.date,
-        circuit: t.circuit.nom,
-        palier: t.circuit.palier,
-        prenom: b.prenom,
-        nom: b.nom,
-        km: offre.km,
-        formule: offre.nom,
-        tarif: offre.prix,
-        compris: compris(t.circuit.palier),
-        email: b.email,
-        telephone: b.telephone,
-        experience: b.experience,
-        flexibilite: b.flexibilite,
-        accompagnants: b.accompagnants,
-        ...(b.message ? { message: b.message } : {}),
-        lienNotion,
-      });
-    } catch (e) {
-      echecs.push(SYNC.echecAgenda);
-      console.error(`[reservation] ${ref} échec agenda`, e);
+    if (!agendaConfigure()) {
+      console.warn(
+        `[reservation] ${ref} agenda non configuré : aucun événement créé. ` +
+          `Renseigner GOOGLE_SA_EMAIL, GOOGLE_SA_PRIVATE_KEY et GOOGLE_CALENDAR_ID.`,
+      );
+    } else {
+      try {
+        lienAgenda = await creerEvenement({
+          date: t.date,
+          circuit: t.circuit.nom,
+          palier: t.circuit.palier,
+          prenom: b.prenom,
+          nom: b.nom,
+          km: offre.km,
+          formule: offre.nom,
+          tarif: offre.prix,
+          compris: compris(t.circuit.palier),
+          email: b.email,
+          telephone: b.telephone,
+          experience: b.experience,
+          flexibilite: b.flexibilite,
+          accompagnants: b.accompagnants,
+          ...(b.message ? { message: b.message } : {}),
+          lienNotion,
+        });
+      } catch (e) {
+        echecs.push(SYNC.echecAgenda);
+        console.error(`[reservation] ${ref} échec agenda`, e);
+      }
     }
 
     try {
@@ -242,7 +251,6 @@ export async function POST(req: NextRequest) {
       formule: offre.nom,
       tarif: offre.prix,
     };
-    await memoriserIdempotence(cle, reponse);
 
     // Journal sans données personnelles (§9).
     console.log(
