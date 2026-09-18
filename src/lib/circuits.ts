@@ -84,6 +84,29 @@ export function tarif(palier: Palier, km: number): Offre | null {
   return offres(palier).find((o) => o.km === km) ?? null;
 }
 
+/**
+ * La base Notion n'orthographie pas les circuits comme le site. Relevé du
+ * 18/09/2026 sur « Agenda trackdays » : 12 valeurs, dont 6 seulement
+ * correspondent à un circuit du site.
+ *
+ * Les six autres — Barcelona-Catalunya, Hockenheim, Monza, Nürburgring
+ * Nordschleife, Val de Vienne, Le Mans - Tracé des 24H — ne sont pas
+ * proposées sur le site : elles sont ignorées et journalisées, jamais
+ * rattachées de force à un circuit voisin.
+ *
+ * À l'inverse, La Ferté-Gaucher et Les Écuyers sont proposés par le site
+ * mais n'ont AUCUNE ligne dans la base : ils ne sortiront jamais du
+ * sélecteur tant qu'aucune date n'y est saisie.
+ */
+export const ALIAS_CIRCUIT: Record<string, SlugCircuit> = {
+  'Le Mans - Bugatti': 'le-mans-bugatti',
+  'Paul Ricard': 'le-castellet',
+  'Spa - Francorchamps': 'spa-francorchamps',
+  'Magny-Cours': 'magny-cours',
+  'Dijon-Prenois': 'dijon-prenois',
+  Clastres: 'clastres',
+};
+
 const PAR_NOM = new Map<string, SlugCircuit>(
   (Object.keys(CIRCUITS) as SlugCircuit[]).map((slug) => [CIRCUITS[slug].nom, slug]),
 );
@@ -103,6 +126,11 @@ export function resoudreCircuit(valeur: string): CircuitResolu | null {
   const parNom = PAR_NOM.get(brut);
   if (parNom) {
     return { slug: parNom, nom: CIRCUITS[parNom].nom, palier: CIRCUITS[parNom].palier };
+  }
+
+  const alias = ALIAS_CIRCUIT[brut];
+  if (alias) {
+    return { slug: alias, nom: CIRCUITS[alias].nom, palier: CIRCUITS[alias].palier };
   }
   return null;
 }

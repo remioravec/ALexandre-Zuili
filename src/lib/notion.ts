@@ -1,7 +1,13 @@
 import { Client, isFullPage } from '@notionhq/client';
 import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints';
 import { env } from './env';
-import { PROP_TRACKDAY, STATUT_TRACKDAY, capacite } from './notion-map';
+import {
+  PROP_TRACKDAY,
+  capacite,
+  etatsPubliables,
+  exigerAlz,
+  exigerLoc,
+} from './notion-map';
 import { resoudreCircuit, offres, type CircuitResolu, type Offre } from './circuits';
 
 let client: Client | null = null;
@@ -33,18 +39,20 @@ function lireDate(props: Props, nom: string): string | null {
   return p.type === 'date' ? (p.date?.start ?? null) : null;
 }
 
-function lireSelect(props: Props, nom: string): string | null {
+/** `Circuit` est un select, `État` un status : les deux passent par ici. */
+function lireLibelle(props: Props, nom: string): string | null {
   const p = propriete(props, nom);
   if (p.type === 'select') return p.select?.name ?? null;
   if (p.type === 'status') return p.status?.name ?? null;
+  if (p.type === 'multi_select') return p.multi_select.map((o) => o.name).join(', ') || null;
   if (p.type === 'rich_text') return p.rich_text.map((t) => t.plain_text).join('') || null;
   if (p.type === 'title') return p.title.map((t) => t.plain_text).join('') || null;
   return null;
 }
 
-function lireNombre(props: Props, nom: string): number | null {
+function lireCase(props: Props, nom: string): boolean {
   const p = propriete(props, nom);
-  return p.type === 'number' ? p.number : null;
+  return p.type === 'checkbox' ? p.checkbox : false;
 }
 
 export type Trackday = {
@@ -59,32 +67,47 @@ export type Trackday = {
 export function versTrackday(page: PageObjectResponse): Trackday | null {
   const date = lireDate(page.properties, PROP_TRACKDAY.date);
   if (!date) {
-    console.warn(`[dates] page ${page.id} ignorée : ${PROP_TRACKDAY.date} vide`);
+    console.warn(`[dates] ${page.id} ignorée : ${PROP_TRACKDAY.date} vide`);
     return null;
   }
 
-  const brut = lireSelect(page.properties, PROP_TRACKDAY.circuit);
+  const brut = lireLibelle(page.properties, PROP_TRACKDAY.circuit);
   if (!brut) {
-    console.warn(`[dates] page ${page.id} ignorée : ${PROP_TRACKDAY.circuit} vide`);
+    console.warn(`[dates] ${page.id} ignorée : ${PROP_TRACKDAY.circuit} vide`);
     return null;
   }
 
   const circuit = resoudreCircuit(brut);
   if (!circuit) {
-    console.warn(
-      `[dates] page ${page.id} ignorée : circuit « ${brut} » absent de CIRCUITS. ` +
-        `Aligner la valeur du Select Notion sur src/lib/circuits.ts.`,
-    );
+    // Attendu pour Barcelona, Hockenheim, Monza, Nürburgring, Val de Vienne
+    // et Le Mans - Tracé des 24H : ces circuits ne sont pas proposés.
+    console.warn(`[dates] ${page.id} ignorée : circuit « ${brut} » hors des 8 du site.`);
     return null;
   }
 
   const liste = offres(circuit.palier);
-  const places = capacite(lireNombre(page.properties, PROP_TRACKDAY.places), liste[0]?.km ?? 0);
+  // La base ne porte aucune propriété de capacité : on retombe sur le défaut.
+  const places = capacite(null, liste[0]?.km ?? 0);
 
   return { id: page.id, date: date.slice(0, 10), circuit, places, offres: liste };
 }
 
-/** Filtres : Statut = Ouvert, Date >= aujourd'hui, Places > 0. */
+/** La ligne est-elle mise en vente ? Règle documentée dans notion-map.ts. */
+function publiable(page: PageObjectResponse): boolean {
+  const etat = lireLibelle(page.properties, PROP_TRACKDAY.etat);
+  if (etat === null || !etatsPubliables().includes(etat)) return false;
+  if (exigerAlz() && !lireCase(page.properties, PROP_TRACKDAY.alz)) return false;
+  if (exigerLoc() && !lireCase(page.properties, PROP_TRACKDAY.loc)) return false;
+  return true;
+}
+
+/**
+ * Dates à venir et mises en vente.
+ *
+ * Le filtre sur `État` est appliqué côté serveur plutôt que dans la requête
+ * Notion : `etatsPubliables()` est configurable et une propriété *status*
+ * ne se filtre pas comme un *select*. Le volume le permet — 96 lignes.
+ */
 export async function datesOuvertes(): Promise<Trackday[]> {
   const aujourdhui = new Date().toISOString().slice(0, 10);
   const pages: PageObjectResponse[] = [];
@@ -93,12 +116,7 @@ export async function datesOuvertes(): Promise<Trackday[]> {
   do {
     const r = await notion().databases.query({
       database_id: env('NOTION_DB_TRACKDAYS'),
-      filter: {
-        and: [
-          { property: PROP_TRACKDAY.date, date: { on_or_after: aujourdhui } },
-          { property: PROP_TRACKDAY.statut, select: { equals: STATUT_TRACKDAY.ouvert } },
-        ],
-      },
+      filter: { property: PROP_TRACKDAY.date, date: { on_or_after: aujourdhui } },
       sorts: [{ property: PROP_TRACKDAY.date, direction: 'ascending' }],
       start_cursor: cursor,
       page_size: 100,
@@ -107,18 +125,33 @@ export async function datesOuvertes(): Promise<Trackday[]> {
     cursor = r.has_more ? (r.next_cursor ?? undefined) : undefined;
   } while (cursor);
 
-  return pages
-    .map(versTrackday)
-    .filter((t): t is Trackday => t !== null && t.places > 0);
+  const retenus: Trackday[] = [];
+  const vus = new Set<string>();
+
+  for (const page of pages) {
+    if (!publiable(page)) continue;
+    const t = versTrackday(page);
+    if (!t || t.places <= 0) continue;
+
+    // La base porte plusieurs organisateurs pour un même circuit le même
+    // jour (deux lignes Hockenheim au 13/04, par exemple). Le calendrier
+    // n'a qu'une case par jour : on garde la première et on journalise.
+    const cle = `${t.circuit.slug}:${t.date}`;
+    if (vus.has(cle)) {
+      console.warn(`[dates] doublon ignoré : ${cle} (page ${page.id})`);
+      continue;
+    }
+    vus.add(cle);
+    retenus.push(t);
+  }
+
+  return retenus;
 }
 
-/**
- * Relit une page Trackday sans passer par le cache (§6, étape 3) et revalide
- * statut, places et date.
- */
+/** Relit une page sans cache (§6, étape 3) et revalide sa mise en vente. */
 export async function relireTrackday(id: string): Promise<Trackday | null> {
   const page = await notion().pages.retrieve({ page_id: id });
   if (!isFullPage(page)) return null;
-  if (lireSelect(page.properties, PROP_TRACKDAY.statut) !== STATUT_TRACKDAY.ouvert) return null;
+  if (!publiable(page)) return null;
   return versTrackday(page);
 }

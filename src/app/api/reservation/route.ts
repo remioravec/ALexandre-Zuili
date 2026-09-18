@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { isFullPage } from '@notionhq/client';
 import { notion, relireTrackday, ProprieteManquante } from '@/lib/notion';
-import { PROP_RESERVATION, PROP_TRACKDAY, STATUT_RESERVATION, SYNC } from '@/lib/notion-map';
+import { PROP_RESERVATION, STATUT_RESERVATION, SYNC, propPlaces } from '@/lib/notion-map';
 import { tarif, compris } from '@/lib/circuits';
 import { creerEvenement } from '@/lib/calendar';
 import { mailClient, mailInterne, type Demande } from '@/lib/mail';
@@ -145,15 +145,26 @@ export async function POST(req: NextRequest) {
     const lienNotion = isFullPage(page) ? page.url : `https://notion.so/${page.id.replace(/-/g, '')}`;
     const ref = reference(page.id);
 
-    // ── 6. Décrémenter Places si la réservation est ferme (option B) ──
+    // ── 6. Décrémenter la capacité si la réservation est ferme (option B) ──
     if (reservationFerme()) {
-      try {
-        await notion().pages.update({
-          page_id: t.id,
-          properties: { [PROP_TRACKDAY.places]: { number: Math.max(0, t.places - 1) } },
-        });
-      } catch (e) {
-        console.error(`[reservation] ${ref} décrément de Places impossible`, e);
+      const prop = propPlaces();
+      if (!prop) {
+        // La base n'a aucune propriété de capacité : l'option B ne peut pas
+        // tenir sa promesse. On le dit au lieu de laisser croire au blocage.
+        console.error(
+          `[reservation] ${ref} RESERVATION_FERME=true mais aucune propriété de ` +
+            `capacité n'existe dans la base : le créneau n'est PAS bloqué. ` +
+            `Créer la propriété puis définir PROP_PLACES.`,
+        );
+      } else {
+        try {
+          await notion().pages.update({
+            page_id: t.id,
+            properties: { [prop]: { number: Math.max(0, t.places - 1) } },
+          });
+        } catch (e) {
+          console.error(`[reservation] ${ref} décrément de « ${prop} » impossible`, e);
+        }
       }
     }
 
