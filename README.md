@@ -1,4 +1,4 @@
-# Site GT3 992.2 — Apex Drive
+# Site GT3 992.2 — DRS Experience
 
 Maquette front complète, une page, deux vues routées côté client.
 Hébergé en statique sur Vercel, déploiement à chaque push.
@@ -35,7 +35,7 @@ Dupliquée volontairement entre le front (`window.GT3`) et le serveur.
 Le front **affiche**, le serveur **fait autorité**. Voir `STACK-RESERVATION.md`.
 
 ## Marque
-Le site est publié sous le nom **Apex Drive** : le monogramme « AZ » du header a été
+Le site est publié sous le nom **DRS Experience** : le monogramme « AZ » du header a été
 retiré (le logo est un wordmark seul) et le nom remplacé dans le `title`, l'Open Graph,
 le JSON-LD `Organization`, le pied de page, les libellés ARIA, les titres du routeur,
 le favicon et l'avatar du bouton d'appel. « GL Coaching Racing » et le nom de
@@ -71,6 +71,15 @@ la constante `STRICT` à `true` dans `public/index.html` pour refuser toute date
 non confirmée. Si aucune date n'est ouverte, le tunnel l'annonce et renvoie au
 téléphone.
 
+## Domaine
+Le site est publié sous **drs-experience.com**. Les balises canoniques,
+Open Graph et JSON-LD pointent vers ce domaine.
+
+`ALLOWED_ORIGIN` accepte plusieurs origines séparées par des virgules :
+pendant une bascule, le site répond à la fois sur l'URL Vercel et sur le
+domaine, et n'en autoriser qu'une ferait répondre 403 au formulaire depuis
+l'autre.
+
 ## Déploiement
 Projet Vercel `apex-drive` (https://apex-drive-one.vercel.app), lié à ce dépôt.
 Framework détecté : Next.js. Les fichiers de `public/` et les routes `/api/*`
@@ -92,7 +101,6 @@ npm run build
 ```
 
 ## À faire avant mise en ligne
-- Remplacer `https://votresite.fr` dans les balises canoniques, Open Graph et JSON-LD
 - Renseigner les variables d'environnement (`.env.example`) — sans elles, l'API répond 503
 - Créer la base Notion « Réservations » (§4.2) et y partager l'intégration
 - Confirmer le schéma réel de la base Trackday, puis corriger `src/lib/notion-map.ts`

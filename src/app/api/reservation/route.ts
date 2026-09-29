@@ -43,11 +43,22 @@ type Reponse = {
   notifications: { mail: 'ok' | 'echec'; agenda: 'ok' | 'absent' | 'echec' };
 };
 
+/**
+ * ALLOWED_ORIGIN accepte PLUSIEURS origines séparées par des virgules.
+ *
+ * Pendant une bascule de domaine, le site répond sur l'ancienne URL et sur la
+ * nouvelle en même temps : n'en autoriser qu'une ferait répondre 403 au
+ * formulaire depuis l'autre, sans message utile pour le visiteur.
+ */
 function origineAutorisee(req: NextRequest): boolean {
-  const attendue = env('ALLOWED_ORIGIN');
   const origine = req.headers.get('origin');
   // Requête same-origin : pas d'en-tête Origin, rien à refuser.
-  return origine === null || origine === attendue;
+  if (origine === null) return true;
+  const autorisees = env('ALLOWED_ORIGIN')
+    .split(',')
+    .map((o) => o.trim().replace(/\/$/, ''))
+    .filter(Boolean);
+  return autorisees.includes(origine.replace(/\/$/, ''));
 }
 
 export async function POST(req: NextRequest) {
