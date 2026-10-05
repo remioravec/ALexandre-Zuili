@@ -71,6 +71,23 @@ la constante `STRICT` à `true` dans `public/index.html` pour refuser toute date
 non confirmée. Si aucune date n'est ouverte, le tunnel l'annonce et renvoie au
 téléphone.
 
+## Notifications
+Les deux e-mails (client et interne) partent en **SMTP Gmail** depuis
+`administration@remi-oravec.fr`, avec un mot de passe d'application. Choix
+arrêté le 05/10/2026 : pas de Resend, pas de domaine expéditeur dédié.
+
+Gmail réécrit l'expéditeur avec le compte authentifié, donc le client reçoit
+ses messages de « DRS Experience <administration@remi-oravec.fr> ».
+
+Le chemin Resend reste câblé dans `src/lib/mail.ts` et prendrait la priorité
+si `RESEND_API_KEY` était renseignée — c'est la porte de sortie si le volume
+dépasse un jour les ~500 envois quotidiens de Gmail.
+
+**Après toute modification d'une variable d'environnement, attendre avant de
+déclencher le build** : Vercel fige les variables au lancement, et un
+déploiement créé dans la foulée repart avec les anciennes valeurs. Ce piège
+a coûté deux faux diagnostics sur ce projet.
+
 ## Domaine
 Le site est publié sous **drs-experience.com**. Les balises canoniques,
 Open Graph et JSON-LD pointent vers ce domaine.
