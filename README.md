@@ -4,8 +4,11 @@ Maquette front complète, une page, deux vues routées côté client.
 Hébergé en statique sur Vercel, déploiement à chaque push.
 
 ## Contenu
-- `public/index.html` — tout le front : HTML, CSS et JS en ligne, 172 Ko
+- `public/index.html` — tout le front : HTML, CSS et JS en ligne, 185 Ko
 - `public/assets/` — 22 images WebP, 924 Ko
+- `public/` (racine) — icônes (`favicon.ico`, `favicon.svg`, PNG 16→512,
+  `apple-touch-icon.png`), `site.webmanifest`, `robots.txt`, `sitemap.xml`
+  et `og-drs-experience.jpg` (image de partage 1200×630)
 - `src/app/api/` — les deux route handlers : `/api/dates`, `/api/reservation`
 - `src/lib/` — configuration, grille tarifaire, Notion, Redis, agenda, e-mails
 - `next.config.mjs` — routage : page statique, catch-all hors `/api`
@@ -15,14 +18,18 @@ Hébergé en statique sur Vercel, déploiement à chaque push.
 
 ## Architecture du fichier
 - **CSS** : un seul bloc `<style>`, DA Neo Oak Green (`--oak`, `--bone`, `--accent` blanc)
-- **6 blocs `<script>`**, dans cet ordre imposé :
+- **7 blocs `<script>`**, dans cet ordre imposé :
   1. `window.GT3` — moteur tarifaire, déclaré dans le `<head>` car utilisé plus bas
   2. méga-menu et tiroir mobile
   3. tunnel de réservation (4 étapes + calendrier maison)
   4. carrousel d'avis
   5. parallaxe au défilement
   6. routeur de vues + menu à état
-- **2 vues** : `[data-route="/"]` et `[data-route="/le-moniteur/"]`, une seule visible
+  7. consentement et chargement de Google Analytics 4
+- **2 vues** : `[data-route="/"]` et `[data-route="/le-moniteur/"]`, une seule visible.
+  La route vit dans le **chemin** (`/le-moniteur/`), plus dans le hash : une visite
+  directe ou un robot obtient la bonne vue, son titre et sa canonique. Le hash
+  (`#/le-moniteur/`) reste accepté en entrée pour les anciens liens.
 
 ## Pièges connus
 - Ne jamais déclarer une variable globale nommée `top`, `parent`, `name` ou `length` :
@@ -56,9 +63,10 @@ serveur, la page reste le fichier statique de `public/`.
 envoyée par le front est ignorée. La grille est dupliquée volontairement entre
 `window.GT3` (affichage) et ce module (autorité).
 
-**Schéma Notion non confirmé.** `src/lib/notion-map.ts` est le SEUL point de
-contact avec les noms de propriétés. Si le schéma réel diffère, corriger ce
-fichier — jamais le code appelant. Une propriété absente remonte une erreur
+**Schéma Notion relevé le 18/09/2026** sur la base « Agenda trackdays », et
+non plus supposé : il diffère du §4.1 de la spécification (voir l'en-tête de
+`src/lib/notion-map.ts`). Ce fichier est le SEUL point de contact avec les noms
+de propriétés. Si le schéma bouge, corriger ce fichier — jamais le code appelant. Une propriété absente remonte une erreur
 explicite, une date dont le circuit est inconnu est ignorée et journalisée.
 
 **Configuration incomplète** : la lecture des variables est paresseuse, donc
@@ -87,6 +95,22 @@ dépasse un jour les ~500 envois quotidiens de Gmail.
 déclencher le build** : Vercel fige les variables au lancement, et un
 déploiement créé dans la foulée repart avec les anciennes valeurs. Ce piège
 a coûté deux faux diagnostics sur ce projet.
+
+## Indexation et mesure d'audience
+`robots.txt` exclut les sections non construites (`/formules/`, `/circuits/`,
+`/reservation/`, `/mentions-legales/`) : le catch-all les sert avec le contenu
+de l'accueil, les indexer reviendrait à publier la même page sous huit adresses.
+`sitemap.xml` ne déclare donc que les deux vues réelles, `/` et `/le-moniteur/`.
+
+La canonique de l'accueil pointe sur `https://drs-experience.com/` — elle
+désignait `/location-voiture-circuit/`, que le sitemap ne déclare pas. Le
+routeur la réécrit à chaque changement de vue.
+
+Google Analytics 4 est câblé dans le dernier bloc `<script>` : **consent mode
+v2 refusé par défaut**, bandeau d'acceptation, et le tag ne se télécharge
+qu'après accord (choix mémorisé dans `localStorage`, clé `drs-consent`).
+`GA4_ID` vide = aucun tag, aucun bandeau ; renseigner l'identifiant de flux
+`G-…` suffit à tout activer.
 
 ## Domaine
 Le site est publié sous **drs-experience.com**. Les balises canoniques,
@@ -117,12 +141,58 @@ npm run typecheck
 npm run build
 ```
 
-## À faire avant mise en ligne
-- Renseigner les variables d'environnement (`.env.example`) — sans elles, l'API répond 503
-- Créer la base Notion « Réservations » (§4.2) et y partager l'intégration
-- Confirmer le schéma réel de la base Trackday, puis corriger `src/lib/notion-map.ts`
-- Trancher les TODO-DATA restants : capacité du « ou à deux », battement entre circuits,
-  invitation du client à l'événement d'agenda, demande ou réservation ferme
-- 6 circuits sur 8 utilisent un visuel d'illustration, pas une photo du lieu réel
-- Les 6 avis Google sont fictifs : à remplacer avant publication
-- En production, séparer les 2 vues en 2 URL réelles — le routeur client ne remplace pas des pages
+## Roadmap — état au 15/10/2026
+
+### Livré
+- Front complet (2 vues) déployé sur Vercel, déploiement à chaque push
+- **drs-experience.com** et `www`, certificat émis, DNS posé chez OVH
+- `GET /api/dates` : les dates publiables de la base « Agenda trackdays »
+  alimentent le calendrier du tunnel
+- `POST /api/reservation` : page créée dans « Réservations site », e-mail client
+  et e-mail interne, idempotence par `Idempotency-Key`, pot de miel, tarif
+  recalculé côté serveur
+- Notifications SMTP Gmail vers Guillaume, Rémi et Alexandre — vérifiées par un
+  envoi réel, lignes de test supprimées de Notion
+- Schéma Notion relevé le 18/09/2026 et câblé dans `src/lib/notion-map.ts`
+- Mise en page des deux e-mails refaite à la charte
+- Icônes, manifeste, image de partage, `robots.txt`, `sitemap.xml`, canonique
+  de l'accueil corrigée, routes portées par le chemin
+- Google Analytics 4 câblé avec consentement préalable
+
+### En attente d'une action de Rémi ou d'Alexandre
+- [ ] **Créer la propriété GA4** « DRS Experience » (Admin → Créer une propriété,
+      fuseau Paris, devise EUR, flux Web `https://drs-experience.com`). Ensuite je
+      lis l'identifiant `G-…` par l'API, je le pose et je redéploie. Composio
+      n'expose que des outils de lecture sur Analytics.
+- [ ] **Vérifier le domaine en Search Console** : soit la balise HTML (me
+      transmettre la valeur `content="…"`, je la pose), soit l'enregistrement TXT
+      à faire ajouter chez OVH. La propriété `drs-experience.com` est déjà créée,
+      non vérifiée. Une fois vérifiée, je soumets le sitemap.
+- [ ] **Cocher « Update content »** sur l'intégration Notion « Site GT3 » : sans
+      ce droit, impossible de modifier une ligne existante (décrémenter une
+      capacité, faire passer un trackday à « Réservé »). Lecture et création
+      fonctionnent déjà.
+- [ ] **Régénérer le jeton Notion** : il a transité par une conversation.
+- [ ] Remplacer les **6 avis Google fictifs** de la page.
+- [ ] 6 circuits sur 8 sont illustrés par un visuel générique, pas une photo du
+      lieu réel.
+- [ ] Trancher **La Ferté-Gaucher** et **Les Écuyers** : annoncés sur la page,
+      aucune date ouverte dans Notion.
+- [ ] TODO-DATA restants de la spécification : capacité du « ou à deux »,
+      battement entre deux circuits éloignés, invitation du client à l'événement
+      d'agenda, demande ou réservation ferme.
+
+### Ensuite, côté technique
+- **Agenda Google non branché** : `GOOGLE_CALENDAR_ID` et le compte de service
+  ne sont pas renseignés, la réservation répond donc `agenda: "absent"`. C'est le
+  dégradé prévu, pas une panne — à brancher si Guillaume veut l'événement.
+- **Pas de limitation de débit** (Upstash absent) : la protection contre le
+  double envoi repose sur une requête Notion d'idempotence.
+- **Mentions légales et CGV** : la route est exclue de l'indexation tant que la
+  page n'existe pas.
+- **Pages réelles pour les formules et les circuits** : aujourd'hui le catch-all
+  renvoie l'accueil, ces URL ne peuvent donc pas se positionner. C'est le
+  chantier à ouvrir si on veut du trafic sur « location GT3 Magny-Cours » et
+  consorts.
+- **Suivi des conversions** : poser un événement GA4 sur l'envoi du formulaire
+  une fois l'identifiant de flux en place.
