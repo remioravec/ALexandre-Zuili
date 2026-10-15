@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Les sections non construites sont servies par le catch-all : elles
+# rendraient la page d'accueil sous une autre URL, donc du contenu dupliqué.
+Disallow: /formules/
+Disallow: /circuits/
+Disallow: /reservation/
+Disallow: /mentions-legales/
+Disallow: /api/
+
+Sitemap: https://drs-experience.com/sitemap.xml

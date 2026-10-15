@@ -5,15 +5,28 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Location voiture circuit GT3 992.2 — DRS Experience</title>
 <meta name="description" content="Location de voiture sur circuit avec moniteur : Porsche 911 GT3 992.2 Touring, roues arrière directrices. Huit circuits, accès piste compris.">
-<link rel="canonical" href="https://drs-experience.com/location-voiture-circuit/">
+<link rel="canonical" href="https://drs-experience.com/">
 <meta name="robots" content="index, follow, max-image-preview:large">
 <meta name="theme-color" content="#141A16">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%233D5343'/%3E%3Ctext x='16' y='21' font-family='Helvetica,Arial,sans-serif' font-size='9' font-weight='700' text-anchor='middle' fill='%23EAE6DA'%3EDRS%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico" sizes="32x32">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180">
+<link rel="manifest" href="/site.webmanifest">
+<meta name="apple-mobile-web-app-title" content="DRS Experience">
+<meta name="application-name" content="DRS Experience">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="DRS Experience">
+<meta property="og:url" content="https://drs-experience.com/">
 <meta property="og:title" content="Location voiture circuit GT3 992.2 — DRS Experience">
+<meta property="og:image" content="https://drs-experience.com/og-drs-experience.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Porsche 911 GT3 992.2 Touring — DRS Experience">
 <meta property="og:description" content="Porsche 911 GT3 992.2 Touring, moniteur professionnel, accès piste et déjeuner compris. Huit circuits en France et en Belgique.">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://drs-experience.com/og-drs-experience.jpg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
@@ -1169,6 +1182,17 @@ section[id],header[id]{scroll-margin-top:86px}
 .navlink.cur::after{transform:scaleX(1)}
 @media(prefers-reduced-motion:reduce){.view{animation:none}}
 
+
+/* bandeau de consentement — la mesure d'audience ne démarre qu'après accord */
+.cookie{position:fixed;left:var(--pad);bottom:18px;z-index:95;max-width:432px;background:var(--oak-deep);border:1px solid var(--line-2);padding:18px 20px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.cookie p{font-size:14px;line-height:1.5;color:var(--bone-dim)}
+.cookie p b{color:var(--bone);font-weight:600}
+.cookie-act{display:flex;gap:10px;margin-top:14px}
+.cookie button{font-family:var(--data);font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:11px 18px;border:1px solid var(--line-2);background:transparent;color:var(--bone);cursor:pointer;transition:background .2s,color .2s}
+.cookie button:hover{background:var(--accent-soft)}
+.cookie .ck-ok{background:var(--bone);color:var(--oak-ink);border-color:var(--bone)}
+.cookie .ck-ok:hover{background:#fff}
+@media(max-width:600px){.cookie{left:12px;right:12px;bottom:12px;max-width:none}}
 </style>
 <script>
 /* ═══ grille tarifaire réelle — affiches GL Coaching Racing ═══ */
@@ -2371,7 +2395,7 @@ if(simC&&simF){
     if(c) c.href='https://drs-experience.com'+route;
     const vue=document.querySelector('.view:not([hidden])');
     if(vue) vue.querySelectorAll('.rise').forEach(el=>el.classList.add('on'));
-    if(push && location.hash.slice(1)!==route) history.pushState({route:route},'','#'+route);
+    if(push && location.pathname!==route) history.pushState({route:route},'',route);
     if(scroll) window.scrollTo({top:0,behavior:'auto'});
     marque();
     observer();
@@ -2382,12 +2406,84 @@ if(simC&&simF){
     if(!a) return;
     const href=a.getAttribute('href');
     if(!href||href.indexOf('http')===0||href.indexOf('tel:')===0||href.indexOf('mailto:')===0) return;
+    if(href.charAt(0)==='#' && href.length>1){
+      /* ancre visée dans une vue masquée : on affiche la vue avant de défiler */
+      const cible=document.getElementById(href.slice(1));
+      const vue=cible&&cible.closest('.view');
+      if(vue&&vue.hidden){
+        e.preventDefault();
+        show(vue.dataset.route,{scroll:false});
+        cible.scrollIntoView({block:'start'});
+      }
+      return;
+    }
     if(routes.indexOf(href)!==-1){ e.preventDefault(); show(href); }
   });
 
-  window.addEventListener('popstate',function(){ show(location.hash.slice(1)||'/',{push:false}); });
+  /* L'URL porte la route : /le-moniteur/ est servi par le catch-all et rendu
+     directement, donc indexable. Le hash reste accepté pour les anciens liens. */
+  function routeCourante(){
+    const p=location.pathname.replace(/\/*$/,'/')||'/';
+    if(routes.indexOf(p)!==-1) return p;
+    const h=location.hash.slice(1);
+    if(routes.indexOf(h)!==-1) return h;
+    return '/';
+  }
 
-  show(location.hash.slice(1)||'/',{scroll:false,push:false});
+  window.addEventListener('popstate',function(){ show(routeCourante(),{push:false}); });
+
+  show(routeCourante(),{scroll:false,push:false});
+})();
+</script>
+<div class="cookie" id="cookie" hidden role="dialog" aria-label="Mesure d'audience">
+  <p><b>Mesure d'audience.</b> Un cookie Google Analytics nous aide à savoir quelles pages intéressent les visiteurs. Rien n'est déposé tant que vous n'avez pas accepté.</p>
+  <div class="cookie-act">
+    <button type="button" class="ck-ok" id="ckOk">Accepter</button>
+    <button type="button" id="ckNo">Refuser</button>
+  </div>
+</div>
+
+<script>
+/* ── Google Analytics 4 ────────────────────────────────────────────────
+   GA4_ID vide = aucun tag, aucun bandeau. Renseigner l'identifiant de flux
+   (G-XXXXXXXXXX) suffit à activer la mesure.                            */
+(function(){
+  var GA4_ID='';
+  if(!GA4_ID) return;
+
+  window.dataLayer=window.dataLayer||[];
+  function gtag(){dataLayer.push(arguments);}
+  window.gtag=gtag;
+  gtag('consent','default',{
+    ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',
+    analytics_storage:'denied',wait_for_update:500
+  });
+
+  var CLE='drs-consent', boite=document.getElementById('cookie'), choix=null;
+  try{ choix=localStorage.getItem(CLE); }catch(e){}
+
+  function charge(){
+    if(document.getElementById('ga4-src')) return;
+    var s=document.createElement('script');
+    s.async=true; s.id='ga4-src';
+    s.src='https://www.googletagmanager.com/gtag/js?id='+GA4_ID;
+    document.head.appendChild(s);
+    gtag('js',new Date());
+    gtag('config',GA4_ID,{anonymize_ip:true});
+  }
+
+  function repond(ok){
+    try{ localStorage.setItem(CLE, ok?'ok':'non'); }catch(e){}
+    if(ok){ gtag('consent','update',{analytics_storage:'granted'}); charge(); }
+    if(boite) boite.hidden=true;
+  }
+
+  if(choix==='ok'){ gtag('consent','update',{analytics_storage:'granted'}); charge(); }
+  else if(choix!=='non' && boite){
+    boite.hidden=false;
+    document.getElementById('ckOk').addEventListener('click',function(){repond(true);});
+    document.getElementById('ckNo').addEventListener('click',function(){repond(false);});
+  }
 })();
 </script>
 </body>
