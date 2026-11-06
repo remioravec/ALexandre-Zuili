@@ -90,7 +90,7 @@ function rendre(p) {
   </ol></div></nav>`;
 
   const faq = p.faq?.length
-    ? `<section class="band faq-sec">
+    ? `<section class="band faq-sec" id="faq-page">
   <div class="shell">
     <div class="hd rise"><h2>${echappe(p.faqTitre ?? 'Questions fréquentes')}</h2></div>
     <div class="qa rise">
