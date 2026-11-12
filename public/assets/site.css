@@ -1194,3 +1194,13 @@ body.page .crumb{margin-top:62px}
    /api/dates n'a pas répondu, pour ne pas la corriger sous les yeux du
    visiteur. `#rvAttente` prend sa place entre-temps (voir site.js). */
 #rvC.attente{display:none}
+
+/* Circuit sans date ouverte : il reste proposé, mais grisé, en pointillés et
+   non sélectionnable, avec « Nous consulter » à la place du rond de
+   sélection. La mention garde son contraste : c'est elle qui porte
+   l'information utile. */
+.pick label.ferme{cursor:default}
+.pick label.ferme .face{border-style:dashed;background:transparent}
+.pick label.ferme .face .tx,.pick label.ferme .face .km{opacity:.45}
+.pick label.ferme .face .rd{display:none}
+.pick label.ferme .face::after{content:"Nous consulter";margin-left:auto;flex:none;font-family:var(--data);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,230,218,.72);white-space:nowrap}
