@@ -212,7 +212,11 @@
       radios.forEach(function(r){
         const ouvert=!!creneaux[r.value];
         const lab=r.closest('label');
-        if(lab)lab.style.display=ouvert?'':'none';
+        /* Un circuit sans date ouverte reste AFFICHÉ, grisé, non
+           sélectionnable, avec la mention « Nous consulter » : le visiteur
+           voit les 8 circuits du catalogue et sait quoi faire, au lieu de
+           voir la liste se réduire sans explication. */
+        if(lab){lab.style.display='';lab.classList.toggle('ferme',!ouvert);}
         r.disabled=!ouvert;
         if(ouvert&&!coche)coche=r;
       });
