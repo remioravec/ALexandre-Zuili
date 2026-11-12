@@ -1223,3 +1223,10 @@ body.page .crumb{margin-top:62px}
 .pick label.ferme .face .tx,.pick label.ferme .face .km{opacity:.45}
 .pick label.ferme .face .rd{display:none}
 .pick label.ferme .face::after{content:"Nous consulter";margin-left:auto;flex:none;font-family:var(--data);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,230,218,.72);white-space:nowrap}
+
+/* Page légale : « à compléter » doit sauter aux yeux, sinon un champ vide
+   part en production sans que personne ne le voie. `.src` porte la source
+   datée d'un fait verifie, `.maj` la date de revision de la page. */
+.texte .acompleter{font-family:var(--data);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px dashed var(--accent-line);padding:1px 7px;white-space:nowrap}
+.texte .src{font-size:13px;color:var(--bone-dim)}
+.brief .maj{font-family:var(--data);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--bone-dim)}
