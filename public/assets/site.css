@@ -1189,3 +1189,8 @@ section[id],header[id]{scroll-margin-top:86px}
 /* l'en-tête est fixe : une page réelle commence sous lui, pas dessous */
 body.page .crumb{margin-top:62px}
 @media(max-width:640px){body.page .crumb{margin-top:58px}}
+
+/* Étape 1 du tunnel : la liste des circuits reste cachée tant que
+   /api/dates n'a pas répondu, pour ne pas la corriger sous les yeux du
+   visiteur. `#rvAttente` prend sa place entre-temps (voir site.js). */
+#rvC.attente{display:none}
