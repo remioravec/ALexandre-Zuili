@@ -1190,6 +1190,25 @@ section[id],header[id]{scroll-margin-top:86px}
 body.page .crumb{margin-top:62px}
 @media(max-width:640px){body.page .crumb{margin-top:58px}}
 
+/* ═══ composants de page (S45) ═══════════════════════════════════════════ */
+.toc{margin-top:22px;max-width:72ch;border-left:1px solid var(--line-2);padding-left:18px}
+.toc p{font-family:var(--data);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--bone-dim);margin-bottom:10px}
+.toc ol{list-style:none;counter-reset:t}
+.toc li{counter-increment:t;margin-top:7px}
+.toc li::before{content:counter(t,decimal-leading-zero);font-family:var(--data);font-size:11px;color:var(--bone-dim);margin-right:10px}
+.toc a{color:var(--bone);text-decoration:none;border-bottom:1px solid transparent}
+.toc a:hover{border-bottom-color:var(--accent-line)}
+.cta3{display:flex;flex-wrap:wrap;align-items:center;gap:12px;margin-top:26px}
+.cta3 .q{font-size:14.5px;color:var(--bone-dim)}
+.cta3 .q a{color:var(--accent)}
+.cmp{margin-top:22px;max-width:620px;display:grid;gap:14px}
+.cmp .row{display:grid;grid-template-columns:minmax(120px,36%) 1fr;gap:14px;align-items:center}
+.cmp .lab{font-family:var(--data);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--bone-dim)}
+.cmp .bar{position:relative;height:30px;background:rgba(234,230,218,.07);border:1px solid var(--line)}
+.cmp .bar i{position:absolute;inset:0 auto 0 0;background:var(--accent-soft);border-right:1px solid var(--accent-line)}
+.cmp .bar b{position:absolute;inset:0;display:flex;align-items:center;padding-left:12px;font-family:var(--data);font-size:12px;font-weight:500;color:var(--bone)}
+.cmp.nous .bar i{background:rgba(234,230,218,.26)}
+.cmp figcaption{font-size:13.5px;color:var(--bone-dim);margin-top:4px}
 /* Étape 1 du tunnel : la liste des circuits reste cachée tant que
    /api/dates n'a pas répondu, pour ne pas la corriger sous les yeux du
    visiteur. `#rvAttente` prend sa place entre-temps (voir site.js). */
