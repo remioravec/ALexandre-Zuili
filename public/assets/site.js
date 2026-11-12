@@ -126,6 +126,10 @@
     let step=0,sent=false,lastFocus=null,picked=null;
     /* ── branchement /api/dates : creneaux[nom du circuit] = Map(AAAA-MM-JJ -> entrée) ── */
     let creneaux=null,idem=null,ouverture=0,chargement=null;
+    /* `datesPretes` passe à true dès que /api/dates a répondu — succès OU
+       échec. Tant qu'il est faux, l'étape 1 ne montre pas une liste de
+       circuits qu'elle va corriger sous les yeux du visiteur. */
+    let datesPretes=false;
     let cur=new Date();cur.setDate(1);cur.setHours(0,0,0,0);
     const today=new Date();today.setHours(0,0,0,0);
     const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
@@ -158,17 +162,48 @@
             par[x.nom].set(x.date,x);
           });
           creneaux=par;
+          datesPretes=true;finAttente();
           filtrerCircuits();
           majNote();
           drawCal();
         })
         .catch(function(e){
           creneaux=null;
+          datesPretes=true;finAttente();
           console.warn('[dates] disponibilités indisponibles :',e.message);
           majNote();
           drawCal();
         });
       return chargement;
+    }
+    /* On demande les disponibilités dès que la page est libre, sans attendre le
+       clic sur « Réserver » : la liste des circuits est alors juste du premier
+       coup, et le préchargement ne retarde rien d'autre. */
+    if('requestIdleCallback' in window)requestIdleCallback(function(){chargerDates();},{timeout:3000});
+    else setTimeout(chargerDates,1500);
+
+    /* ── Anti-saut de l'étape 1 ──
+       Le HTML porte les 8 circuits et pré-coche Le Mans ; /api/dates décide
+       ensuite lesquels sont ouverts. Si la liste est peinte avant la réponse,
+       le visiteur voit les 8 circuits puis la liste s'effondrer et la
+       sélection sauter. On ne montre donc rien avant de savoir. */
+    function debutAttente(){
+      const c=document.getElementById('rvC');if(!c)return;
+      c.classList.add('attente');
+      let p=document.getElementById('rvAttente');
+      if(!p){
+        p=document.createElement('p');p.id='rvAttente';p.className='rv-hint';
+        p.style.cssText='margin:0;padding:18px;border:1px solid var(--line);color:var(--bone)';
+        p.textContent='Chargement des dates ouvertes…';
+        c.parentNode.insertBefore(p,c.nextSibling);
+      }
+      p.style.display='block';
+      bNext.disabled=true;
+    }
+    function finAttente(){
+      const c=document.getElementById('rvC');if(c)c.classList.remove('attente');
+      const p=document.getElementById('rvAttente');if(p)p.style.display='none';
+      bNext.disabled=false;
     }
     function filtrerCircuits(){
       if(!creneaux)return;
@@ -247,6 +282,8 @@
       if(pre&&pre.circuit){const r=[...rv.querySelectorAll('input[name="rvc"]')].find(x=>x.value===pre.circuit);if(r)r.checked=true;}
       if(pre&&pre.circuit){rvOptions();}
       if(pre&&pre.km){const r=[...rv.querySelectorAll('input[name="rvf"]')].find(x=>x.value===String(pre.km));if(r)r.checked=true;}
+      if(!datesPretes)debutAttente();
+      chargerDates();
       rvOptions();go(0,true);drawCal();
       idem=(crypto&&crypto.randomUUID)?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(16).slice(2);
       ouverture=Date.now();
@@ -254,7 +291,6 @@
       document.getElementById('rvRecap').style.display='';
       document.getElementById('rvDone').style.display='none';
       document.getElementById('errEnvoi').classList.remove('on');
-      chargerDates();
       setTimeout(()=>document.getElementById('rvClose').focus(),340);
     }
     function closeRV(){
