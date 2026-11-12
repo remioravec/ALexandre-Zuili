@@ -8,6 +8,7 @@ import {
   etatsPubliables,
   exigerAlz,
   exigerLoc,
+  nomsDrs,
 } from './notion-map';
 import { resoudreCircuit, offres, type CircuitResolu, type Offre } from './circuits';
 
@@ -18,10 +19,11 @@ export function notion(): Client {
 }
 
 export class ProprieteManquante extends Error {
-  constructor(nom: string) {
+  constructor(nom: string, indice?: string) {
     super(
       `La propriété « ${nom} » est absente de la base Notion. ` +
-        `Corriger src/lib/notion-map.ts pour coller au schéma réel.`,
+        `Corriger src/lib/notion-map.ts pour coller au schéma réel.` +
+        (indice ? ` ${indice}` : ''),
     );
     this.name = 'ProprieteManquante';
   }
@@ -49,6 +51,36 @@ function lireLibelle(props: Props, nom: string): string | null {
   if (p.type === 'rich_text') return p.rich_text.map((t) => t.plain_text).join('') || null;
   if (p.type === 'title') return p.title.map((t) => t.plain_text).join('') || null;
   return null;
+}
+
+/** Même nom à un accent, une casse ou un tiret près. */
+const aplati = (s: string) =>
+  s
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+/**
+ * Retrouve le nom RÉEL d'une colonne à partir des orthographes acceptées.
+ *
+ * Notion conserve l'accent et la casse saisis à la création de la colonne :
+ * « DRS Expérience » et « DRS Experience » sont deux clés différentes pour
+ * l'API. On compare donc à plat, et on échoue en nommant les colonnes vues
+ * plutôt que de renvoyer un calendrier vide sans explication.
+ */
+function resoudrePropriete(props: Props, candidats: string[]): string {
+  for (const c of candidats) if (props[c]) return c;
+
+  const cles = Object.keys(props);
+  for (const c of candidats) {
+    const cible = aplati(c);
+    const trouvee = cles.find((k) => aplati(k) === cible);
+    if (trouvee) return trouvee;
+  }
+
+  const attendu = candidats.join(' » ou « ') || '(aucun nom accepté)';
+  throw new ProprieteManquante(attendu, `Colonnes présentes : ${cles.join(', ')}.`);
 }
 
 function lireCase(props: Props, nom: string): boolean {
@@ -95,19 +127,29 @@ export function versTrackday(page: PageObjectResponse): Trackday | null {
 
 /** La ligne est-elle mise en vente ? Règle documentée dans notion-map.ts. */
 function publiable(page: PageObjectResponse): boolean {
-  const etat = lireLibelle(page.properties, PROP_TRACKDAY.etat);
-  if (etat === null || !etatsPubliables().includes(etat)) return false;
-  if (exigerAlz() && !lireCase(page.properties, PROP_TRACKDAY.alz)) return false;
-  if (exigerLoc() && !lireCase(page.properties, PROP_TRACKDAY.loc)) return false;
+  const props = page.properties;
+
+  // Condition unique : la case « DRS Expérience ».
+  if (!lireCase(props, resoudrePropriete(props, nomsDrs()))) return false;
+
+  // Garde-fous facultatifs, sans effet tant que leur variable est vide.
+  const etats = etatsPubliables();
+  if (etats.length > 0) {
+    const etat = lireLibelle(props, PROP_TRACKDAY.etat);
+    if (etat === null || !etats.includes(etat)) return false;
+  }
+  if (exigerAlz() && !lireCase(props, PROP_TRACKDAY.alz)) return false;
+  if (exigerLoc() && !lireCase(props, PROP_TRACKDAY.loc)) return false;
   return true;
 }
 
 /**
  * Dates à venir et mises en vente.
  *
- * Le filtre sur `État` est appliqué côté serveur plutôt que dans la requête
- * Notion : `etatsPubliables()` est configurable et une propriété *status*
- * ne se filtre pas comme un *select*. Le volume le permet — 96 lignes.
+ * Notion ne filtre que sur la date ; la case `DRS Expérience` est relue côté
+ * serveur. Les orthographes acceptées se résolvent à plat (`resoudrePropriete`),
+ * ce qu'un filtre Notion, qui exige le nom exact de la colonne, ne sait pas
+ * faire. Le volume le permet — 96 lignes.
  */
 export async function datesOuvertes(): Promise<Trackday[]> {
   const aujourdhui = new Date().toISOString().slice(0, 10);

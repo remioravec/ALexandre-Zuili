@@ -14,6 +14,9 @@
  *
  * `Prix` est le COÛT du trackday pour GL (125 à 1399 €), jamais le tarif
  * client. Le tarif reste calculé par src/lib/circuits.ts.
+ *
+ * AJOUT du 12/11/2026 : la case `DRS Expérience`, qui décide désormais
+ * seule de la mise en vente publique (voir la règle plus bas).
  */
 
 export const PROP_TRACKDAY = {
@@ -28,6 +31,8 @@ export const PROP_TRACKDAY = {
   loc: 'Loc',
   alz: 'ALZ',
   gl: 'GL',
+  /** Case ajoutée par Rémi le 12/11/2026 : elle seule ouvre la vente. */
+  drs: 'DRS Expérience',
 } as const;
 
 /** Valeurs réelles de la propriété `État`. */
@@ -38,36 +43,51 @@ export const ETAT = {
 } as const;
 
 /**
- * ═══ RÈGLE DE MISE EN VENTE — À CONFIRMER PAR RÉMI ═══
+ * ═══ RÈGLE DE MISE EN VENTE ═══
  *
- * `État` décrit le pipeline d'achat de GL, pas la disponibilité publique :
- * « A réserver » = le trackday existe au catalogue de l'organisateur mais
- * le créneau n'est pas pris ; « Réservé » = le créneau est acquis.
+ * Décision de Rémi le 12/11/2026 : la case `DRS Expérience` ouvre une date à
+ * la vente, et elle seule.
  *
- * Par défaut on ne publie donc que `Réservé` : vendre une date que GL n'a
- * pas réservée reviendrait à vendre un créneau qui n'existe pas.
+ * Avant ce jour, la règle portait sur `État` et ne publiait que « Réservé ».
+ * Or `État` décrit le pipeline d'achat de GL, pas la disponibilité publique :
+ * une date tout à fait vendable restait invisible tant que l'état n'était pas
+ * passé à « Réservé ». C'est le symptôme relevé par Rémi.
  *
- * Relevé du 18/09/2026 sur les 27 lignes à venir :
- *   - `État = Réservé`            → 4 dates (Magny-Cours, Clastres)
- *   - `ALZ` cochée                → les 4 mêmes lignes
- *   - `Loc` cochée                → 0 ligne sur 96 (case jamais utilisée)
- *   - toutes dates futures du site → 24 dates
+ * `État`, `ALZ` et `Loc` ne filtrent donc plus rien par défaut. Les trois
+ * restent disponibles en garde-fou facultatif, inactifs tant que leur
+ * variable d'environnement n'est pas renseignée.
+ */
+
+/**
+ * Noms acceptés pour la case de mise en vente.
  *
- * `ETATS_PUBLIABLES` est modifiable par variable d'environnement, sans
- * redéploiement du code : ETATS_PUBLIABLES="Réservé,Contacté".
+ * La comparaison se fait sans accent, sans casse et sans ponctuation (voir
+ * `resoudrePropriete` dans notion.ts) : « DRS Expérience », « DRS Experience »
+ * et « drs-experience » désignent la même colonne. Si la colonne est renommée
+ * dans Notion, PROP_DRS="Nouveau nom" suffit, sans redéploiement du code.
+ */
+export function nomsDrs(): string[] {
+  const impose = process.env.PROP_DRS?.trim();
+  return impose ? [impose] : [PROP_TRACKDAY.drs];
+}
+
+/**
+ * Garde-fou facultatif sur `État`. VIDE PAR DÉFAUT, donc sans effet :
+ * la case `DRS Expérience` décide seule.
+ *
+ * ETATS_PUBLIABLES="Réservé" rétablit l'ancienne condition EN PLUS de la
+ * case — à n'utiliser que si Rémi veut à nouveau les deux.
  */
 export function etatsPubliables(): string[] {
   const brut = process.env.ETATS_PUBLIABLES;
-  if (brut && brut.trim() !== '') {
-    return brut.split(',').map((s) => s.trim()).filter(Boolean);
-  }
-  return [ETAT.reserve];
+  if (!brut || brut.trim() === '') return [];
+  return brut.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
-/** Exiger en plus la case `ALZ` (la voiture est du voyage). Défaut : non. */
+/** Garde-fou facultatif : exiger en plus la case `ALZ`. Défaut : non. */
 export const exigerAlz = () => process.env.EXIGER_ALZ === 'true';
 
-/** Exiger en plus la case `Loc`. Défaut : non — elle n'est jamais cochée. */
+/** Garde-fou facultatif : exiger en plus la case `Loc`. Défaut : non. */
 export const exigerLoc = () => process.env.EXIGER_LOC === 'true';
 
 export const PROP_RESERVATION = {
