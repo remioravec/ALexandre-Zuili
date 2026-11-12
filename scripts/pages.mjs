@@ -108,7 +108,7 @@ function rendre(p) {
 <title>${echappe(p.title)}</title>
 <meta name="description" content="${echappe(p.description)}">
 <link rel="canonical" href="${url}">
-<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="robots" content="${p.noindex ? 'noindex,follow' : 'index, follow, max-image-preview:large'}">
 <meta name="theme-color" content="#141A16">
 <link rel="icon" href="/favicon.ico" sizes="32x32">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">

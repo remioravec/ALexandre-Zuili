@@ -486,4 +486,115 @@ export const pages = [
        "Non. Nous n'avons qu'une voiture, la 911 GT3 992.2 Touring, et c'est délibéré : une seule voiture suivie par celui qui la prépare, pour que la progression soit mesurable d'un relais à l'autre."],
     ],
   },
+  /* ───────────────────────── page légale ────────────────────────────────── */
+  {
+    url: '/mentions-legales/',
+    title: 'Mentions légales | DRS Experience',
+    description:
+      "Mentions légales du site drs-experience.com : éditeur, hébergeur, données collectées par le formulaire de réservation, cookies, droits des visiteurs.",
+    fil: [{ nom: 'Mentions légales' }],
+    /* La page reste hors index tant que l'identité de l'éditeur n'est pas
+       renseignée : mieux vaut une page légale non indexée qu'une page légale
+       incomplète référencée. À retirer dès que les champs sont remplis. */
+    noindex: true,
+    corps: `
+<section class="band">
+  <div class="shell">
+    <p class="label rise">Informations légales</p>
+    <h1 class="rise">Mentions légales</h1>
+    <div class="brief rise">
+      <p>Informations publiées en application de l'article 6 III de la loi n°&nbsp;2004-575 du 21 juin 2004 pour la confiance dans l'économie numérique, et du règlement (UE) 2016/679 (RGPD).</p>
+      <p class="maj">Dernière mise à jour&nbsp;: 12 novembre 2026.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="shell">
+    <div class="hd rise"><h2>Éditeur du site</h2></div>
+    <div class="rise texte">
+      <p>Le site <b>drs-experience.com</b> est édité par&nbsp;:</p>
+      <ul class="liste">
+        <li><b>Dénomination sociale</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+        <li><b>Forme juridique</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+        <li><b>Capital social</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+        <li><b>Siège social</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+        <li><b>Immatriculation</b>&nbsp;: RCS et numéro SIREN — <b class="acompleter">à compléter</b></li>
+        <li><b>Numéro de TVA intracommunautaire</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+        <li><b>Directeur de la publication</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+        <li><b>Téléphone</b>&nbsp;: <a href="tel:+33638685961">06 38 68 59 61</a></li>
+        <li><b>Adresse électronique de contact</b>&nbsp;: <b class="acompleter">à compléter</b></li>
+      </ul>
+      <p>Les prestations de conduite accompagnée sur circuit sont encadrées par un moniteur professionnel&nbsp;: <b>Guillaume Léger</b>. Le détail de ses qualifications figure sur la page <a href="/le-moniteur/">Le moniteur</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="shell">
+    <div class="hd rise"><h2>Hébergeur</h2></div>
+    <div class="rise texte">
+      <p>Le site est hébergé par&nbsp;:</p>
+      <ul class="liste">
+        <li><b>Vercel Inc.</b></li>
+        <li>440 N Barranca Avenue #4133, Covina, CA 91723, États-Unis</li>
+        <li>Contact publié pour les questions relatives aux données&nbsp;: <a href="mailto:privacy@vercel.com">privacy@vercel.com</a></li>
+      </ul>
+      <p class="src">Coordonnées relevées le 12 novembre 2026 sur <a href="https://vercel.com/legal/privacy-policy" rel="nofollow noopener">vercel.com/legal/privacy-policy</a> (mise à jour du 1<sup>er</sup> juin 2026). L'hébergeur ne publie pas de numéro de téléphone sur ses pages légales.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="shell">
+    <div class="hd rise"><h2>Propriété intellectuelle</h2></div>
+    <div class="rise texte">
+      <p>L'ensemble des éléments de ce site — textes, photographies, mise en page, code — est protégé par le droit d'auteur. Toute reproduction ou représentation, totale ou partielle, sans autorisation écrite préalable de l'éditeur est interdite.</p>
+      <p>Les marques et dénominations citées, notamment <b>Porsche</b> et les noms des circuits, appartiennent à leurs titulaires respectifs. Leur mention est strictement descriptive&nbsp;: elle sert à désigner le véhicule utilisé et les lieux où se déroulent les prestations, et n'implique ni partenariat, ni affiliation, ni approbation de la part de ces titulaires.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="shell">
+    <div class="hd rise"><h2>Données personnelles</h2></div>
+    <div class="rise texte">
+      <p><b>Ce que le formulaire de réservation collecte.</b> Prénom, nom, adresse électronique, numéro de téléphone, expérience du circuit, souplesse sur la date, nombre d'accompagnants, et le message libre que vous choisissez d'écrire. Aucun autre champ n'est demandé, et aucune donnée bancaire ne transite par ce site&nbsp;: la demande de réservation ne déclenche aucun paiement en ligne.</p>
+      <p><b>Pourquoi.</b> Traiter votre demande de réservation, vous recontacter pour la confirmer, et organiser la journée sur le circuit. Base légale&nbsp;: l'exécution du contrat, ou les mesures précontractuelles prises à votre demande (article 6.1.b du RGPD).</p>
+      <p><b>À qui elles sont transmises.</b> Aux seuls prestataires techniques nécessaires au traitement de la demande&nbsp;:</p>
+      <ul class="liste">
+        <li><b>Notion Labs, Inc.</b> (États-Unis) — enregistrement de la demande de réservation&nbsp;;</li>
+        <li><b>Google</b> — inscription de la journée à l'agenda et envoi des courriels de confirmation&nbsp;;</li>
+        <li><b>Upstash, Inc.</b> — limitation technique des envois abusifs&nbsp;;</li>
+        <li><b>Vercel Inc.</b> — hébergement du site et journaux techniques.</li>
+      </ul>
+      <p>Ces prestataires sont établis hors de l'Union européenne ou y recourent à des infrastructures situées hors de l'Union&nbsp;: vos données font donc l'objet d'un transfert hors UE, encadré par les clauses contractuelles types de la Commission européenne.</p>
+      <p><b>Protection contre les abus.</b> Pour empêcher l'envoi massif de fausses demandes, votre adresse IP et votre adresse électronique sont comptabilisées de façon temporaire&nbsp;: au plus 5 envois par adresse IP sur 10 minutes et 3 par adresse électronique sur une heure. Ces compteurs expirent d'eux-mêmes au terme de ces durées.</p>
+      <p><b>Durée de conservation</b> de la demande de réservation&nbsp;: <b class="acompleter">à compléter</b>.</p>
+      <p><b>Vos droits.</b> Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation, d'opposition et de portabilité sur vos données. Pour les exercer, écrivez à l'adresse de contact indiquée plus haut. Vous pouvez également introduire une réclamation auprès de la <a href="https://www.cnil.fr" rel="nofollow noopener">CNIL</a>.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="shell">
+    <div class="hd rise"><h2>Cookies et mesure d'audience</h2></div>
+    <div class="rise texte">
+      <p>Au 12 novembre 2026, <b>ce site ne dépose aucun cookie de mesure d'audience ni de publicité</b>&nbsp;: aucun outil de statistiques n'y est actif, et aucun consentement n'est donc demandé.</p>
+      <p>Si une mesure d'audience est ajoutée plus tard, elle sera soumise à votre consentement préalable, recueilli par un bandeau, et refusée par défaut jusqu'à ce que vous l'acceptiez. Cette page sera mise à jour en conséquence.</p>
+    </div>
+  </div>
+</section>
+
+<section class="band">
+  <div class="shell">
+    <div class="hd rise"><h2>Médiation de la consommation et litiges</h2></div>
+    <div class="rise texte">
+      <p>Conformément à l'article L.&nbsp;612-1 du code de la consommation, tout consommateur a le droit de recourir gratuitement à un médiateur de la consommation en vue de la résolution amiable d'un litige l'opposant à un professionnel. Médiateur compétent pour l'éditeur&nbsp;: <b class="acompleter">à compléter</b>.</p>
+      <p>Le présent site est soumis au droit français.</p>
+    </div>
+  </div>
+</section>
+`,
+  },
 ];
