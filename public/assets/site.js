@@ -478,6 +478,10 @@
         if(s&&g&&a.id==='simCta'){pre.circuit=s.querySelector('input:checked').value;pre.km=g.querySelector('input:checked').value;}
         openRV(pre);});
     });
+    /* Les pages réelles pointent « /#reserver » : sans cela, le visiteur
+       arrivait sur l'accueil, tunnel fermé, et devait recliquer. */
+    if(location.hash==='#reserver')openRV({});
+
     drawCal();
   })();
 })();
