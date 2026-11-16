@@ -1265,6 +1265,10 @@ body.page .bandeau + .crumb{margin-top:0}
 @media(max-width:860px){
   .bandeau-q{display:none}
   .bandeau-tx{flex-basis:100%}
+  /* Le texte prend toute la ligne : l'appel à l'action descend d'une
+     ligne, et sans ceci `margin-left:auto` l'enverrait seul à droite,
+     désaligné du texte au-dessus. */
+  .bandeau-cta{margin-left:0}
 }
 @media(max-width:640px){
   .bandeau .shell{gap:8px 14px;padding-top:9px;padding-bottom:9px}
@@ -1272,6 +1276,5 @@ body.page .bandeau + .crumb{margin-top:0}
   .bandeau .d-long{display:none}
   .bandeau .d-court{display:inline}
   .bandeau-tel{display:none}
-  .bandeau-cta{margin-left:0}
   .bandeau ~ .view .open{padding-top:26px}
 }
