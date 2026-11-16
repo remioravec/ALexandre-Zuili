@@ -478,6 +478,10 @@
         if(s&&g&&a.id==='simCta'){pre.circuit=s.querySelector('input:checked').value;pre.km=g.querySelector('input:checked').value;}
         openRV(pre);});
     });
+    /* Les pages réelles pointent « /#reserver » : sans cela, le visiteur
+       arrivait sur l'accueil, tunnel fermé, et devait recliquer. */
+    if(location.hash==='#reserver')openRV({});
+
     drawCal();
   })();
 })();
@@ -715,4 +719,53 @@
       document.getElementById('ckNo').addEventListener('click',function(){repond(false);});
     }
   })();
+
+  /* ═══ bandeau de saison ═══════════════════════════════════════════════
+     Bloc autonome, et non greffé sur celui du tunnel : ce dernier sort
+     dès que #rv est absent, donc sur les cinq pages réelles, où le
+     bandeau est pourtant repris par le générateur. */
+  (function(){
+    const b=document.getElementById('bandeau');
+    if(!b)return;
+
+    /* Fermeture : on RETIRE le bandeau du DOM, ce qui rend d'un coup au
+       héros et à la miette leurs marges d'origine (voir site.css).
+       localStorage peut lever — navigation privée, stockage bloqué — et
+       l'affichage n'en dépend jamais. */
+    const CLE='drs-bandeau-2027';
+    let ferme=false;
+    try{ferme=localStorage.getItem(CLE)==='ferme';}catch(e){}
+    if(ferme){b.remove();return;}
+    const x=document.getElementById('bandeauX');
+    if(x)x.addEventListener('click',function(){
+      b.remove();
+      try{localStorage.setItem(CLE,'ferme');}catch(e){}
+    });
+
+    /* Le bandeau annonce le relevé réel, jamais un chiffre figé dans le
+       HTML : une case cochée ou décochée dans Notion se répercute ici au
+       prochain chargement. Si l'API ne répond pas, la phrase sans chiffre
+       écrite dans le HTML reste affichée — elle est vraie dans tous les cas. */
+    const cible=b.querySelector('[data-bandeau-dates]'),court=b.querySelector('[data-bandeau-court]');
+    if(!cible&&!court)return;
+    const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    fetch('/api/dates',{headers:{accept:'application/json'}})
+      .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(d){
+        const tri=(d.dates||[]).map(function(e){return e.date;}).sort();
+        if(!tri.length)return;
+        const a=tri[0].split('-'),z=tri[tri.length-1].split('-');
+        const mA=MOIS[+a[1]-1],mZ=MOIS[+z[1]-1];
+        const periode=(a[0]===z[0])
+          ? (mA===mZ ? 'en '+mA+' '+a[0] : 'de '+mA+' à '+mZ+' '+z[0])
+          : 'de '+mA+' '+a[0]+' à '+mZ+' '+z[0];
+        const nb=tri.length>1 ? tri.length+' dates ouvertes' : '1 date ouverte';
+        if(cible)cible.textContent=nb+' '+periode+", d'autres s'ajouteront";
+        /* Sous 640 px, c'est cette version-là qui s'affiche : même fait,
+           dit en deux fois moins de signes. */
+        if(court)court.textContent=nb+" jusqu'en "+mZ+' '+z[0];
+      })
+      .catch(function(e){ console.warn('[bandeau] relevé indisponible :',e.message); });
+  })();
+
 })();
