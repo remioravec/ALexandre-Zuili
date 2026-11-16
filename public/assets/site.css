@@ -1228,33 +1228,50 @@ body.page .crumb{margin-top:var(--h-top)}
 .pick label.ferme .face::after{content:"Nous consulter";margin-left:auto;flex:none;font-family:var(--data);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:rgba(234,230,218,.72);white-space:nowrap}
 
 /* ═══ bandeau de saison ══════════════════════════════════════════════════
-   Il se place dans le flux, juste sous l'en-tête fixe (62 px, 58 px en
-   mobile) : pas de décalage fixe à maintenir ailleurs.
+   Il se place dans le flux, juste sous l'en-tête fixe, dont la hauteur est
+   lue dans --h-top : aucune valeur recopiée.
    - `.bandeau + .crumb` annule la marge de la miette, sinon les deux
      compensations du header s'additionnent sur les pages réelles ;
    - `.bandeau ~ .view .open` rend au héros l'air qu'il avait, sans les
      96 px qui ne servaient qu'à passer sous l'en-tête.
    Masquer le bandeau le retire du DOM : les deux règles ci-dessus cessent
-   alors de s'appliquer et les marges d'origine reviennent seules. */
-.bandeau{margin-top:var(--h-top);background:var(--accent-soft);border-bottom:1px solid var(--accent-line)}
-.bandeau .shell{display:flex;align-items:center;gap:14px 18px;flex-wrap:wrap;padding:11px 0}
-.bandeau-tx{margin:0;font-size:14.5px;line-height:1.45;color:var(--bone)}
+   alors de s'appliquer et les marges d'origine reviennent seules.
+
+   RESPONSIVE. Première version : 200 px de haut à 390 px, sur trois lignes,
+   la croix seule sur la dernière. Deux causes — la croix restait dans le
+   flux, et `.btn{min-height:54px}` écrasait le padding réduit. D'où :
+   croix en position absolue, bouton au gabarit compact de `.mpromo .btn`,
+   texte qui se rétrécit au lieu de pousser l'appel à l'action à la ligne,
+   et sous 640 px une phrase courte, sans téléphone (le bouton d'appel
+   flottant est déjà là) ni question. */
+.bandeau{position:relative;margin-top:var(--h-top);background:var(--accent-soft);border-bottom:1px solid var(--accent-line)}
+.bandeau .shell{display:flex;align-items:center;gap:8px 18px;flex-wrap:wrap;
+  padding-top:10px;padding-bottom:10px;padding-right:calc(var(--pad) + 34px)}
+.bandeau-tx{flex:1 1 300px;min-width:0;margin:0;font-size:14.5px;line-height:1.45;color:var(--bone)}
 .bandeau-tx b{font-family:var(--data);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent)}
 .bandeau-tx .sep{margin:0 9px;color:rgba(234,230,218,.38)}
-.bandeau-cta{display:flex;align-items:center;gap:14px;margin-left:auto}
-.bandeau .btn-1{padding:9px 16px;font-size:13px}
+.bandeau .d-court{display:none}
+.bandeau-cta{flex:0 0 auto;display:flex;align-items:center;gap:14px;margin-left:auto}
+.bandeau .btn-1{min-height:44px;padding:0 18px;font-size:11px}
 .bandeau-tel{font-family:var(--data);font-size:13px;letter-spacing:.06em;color:var(--bone-dim);text-decoration:none;white-space:nowrap}
 .bandeau-tel:hover{color:var(--bone)}
-.bandeau-x{flex:none;width:34px;height:34px;display:grid;place-items:center;background:none;border:1px solid transparent;color:var(--bone-dim);font-size:20px;line-height:1;cursor:pointer}
+.bandeau-x{position:absolute;top:50%;transform:translateY(-50%);right:max(8px,calc(var(--pad) - 12px));
+  width:34px;height:34px;display:grid;place-items:center;background:none;border:1px solid transparent;
+  color:var(--bone-dim);font-size:20px;line-height:1;cursor:pointer}
 .bandeau-x:hover{color:var(--bone);border-color:var(--line)}
 .bandeau-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 body.page .bandeau + .crumb{margin-top:0}
 .bandeau ~ .view .open{padding-top:clamp(30px,5vw,56px)}
 @media(max-width:860px){
-  .bandeau .shell{align-items:flex-start}
-  .bandeau-cta{margin-left:0;width:100%}
+  .bandeau-q{display:none}
+  .bandeau-tx{flex-basis:100%}
 }
 @media(max-width:640px){
-  .bandeau-tx{font-size:14px}
+  .bandeau .shell{gap:8px 14px;padding-top:9px;padding-bottom:9px}
+  .bandeau-tx{font-size:13.5px}
+  .bandeau .d-long{display:none}
+  .bandeau .d-court{display:inline}
+  .bandeau-tel{display:none}
+  .bandeau-cta{margin-left:0}
   .bandeau ~ .view .open{padding-top:26px}
 }

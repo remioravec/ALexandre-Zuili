@@ -746,8 +746,8 @@
        HTML : une case cochée ou décochée dans Notion se répercute ici au
        prochain chargement. Si l'API ne répond pas, la phrase sans chiffre
        écrite dans le HTML reste affichée — elle est vraie dans tous les cas. */
-    const cible=b.querySelector('[data-bandeau-dates]');
-    if(!cible)return;
+    const cible=b.querySelector('[data-bandeau-dates]'),court=b.querySelector('[data-bandeau-court]');
+    if(!cible&&!court)return;
     const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
     fetch('/api/dates',{headers:{accept:'application/json'}})
       .then(function(r){ if(!r.ok)throw new Error('HTTP '+r.status); return r.json(); })
@@ -759,8 +759,11 @@
         const periode=(a[0]===z[0])
           ? (mA===mZ ? 'en '+mA+' '+a[0] : 'de '+mA+' à '+mZ+' '+z[0])
           : 'de '+mA+' '+a[0]+' à '+mZ+' '+z[0];
-        cible.textContent=(tri.length>1 ? tri.length+' dates ouvertes ' : '1 date ouverte ')+
-          periode+", d'autres s'ajouteront";
+        const nb=tri.length>1 ? tri.length+' dates ouvertes' : '1 date ouverte';
+        if(cible)cible.textContent=nb+' '+periode+", d'autres s'ajouteront";
+        /* Sous 640 px, c'est cette version-là qui s'affiche : même fait,
+           dit en deux fois moins de signes. */
+        if(court)court.textContent=nb+" jusqu'en "+mZ+' '+z[0];
       })
       .catch(function(e){ console.warn('[bandeau] relevé indisponible :',e.message); });
   })();
