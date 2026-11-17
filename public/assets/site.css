@@ -1314,3 +1314,13 @@ body.page .bandeau + .crumb{margin-top:0}
   .bandeau-tel{display:none}
   .bandeau ~ .view .open{padding-top:26px}
 }
+/* Sous 380 px — iPhone SE et compagnie — chaque ligne compte : la
+   mention « Saison 2027 » part, car « jusqu'en octobre 2027 » dit déjà
+   l'année, et la voiture rétrécit encore. */
+@media(max-width:380px){
+  .bandeau-tx{font-size:13px}
+  .bandeau.offre .bandeau-sz{display:none}
+  .bandeau.offre .bandeau-tx .sep{display:none}
+  .bandeau-noel{width:48px;height:18px;vertical-align:-5px;margin-right:8px}
+  .bandeau-tx b.bandeau-pc{margin-right:9px;padding:2px 7px;font-size:11px}
+}
