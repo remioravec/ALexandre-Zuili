@@ -1269,8 +1269,16 @@ body.page .crumb{margin-top:var(--h-top)}
 /* Le père Noël suit exactement le sort de l'offre : même attribut
    `hidden`, même révélation par le JS, donc il disparaît tout seul le
    25 décembre avec le reste du dispositif. */
-.bandeau-noel{flex:none;width:76px;height:28px}
-.bandeau.offre .bandeau-noel{display:block}
+/* `display:none` écrit noir sur blanc : l'attribut `hidden` du HTML ne
+   masque PAS un élément SVG — la règle d'agent utilisateur `[hidden]`
+   ne vise que les éléments HTML. Sans cette ligne la voiture restait
+   affichée après l'échéance, et dès avant l'exécution du JS. Mesuré,
+   pas supposé. */
+.bandeau-noel{display:none;width:76px;height:28px;vertical-align:-8px;margin-right:12px}
+/* Dans le flux du texte, et non élément flex : en élément flex il
+   s'emparait d'une ligne entière sous 860 px, 29 px de bandeau pour
+   une voiture de 21. */
+.bandeau.offre .bandeau-noel{display:inline-block}
 /* Sélecteur porté par `.bandeau-tx`, et non par la seule classe : la
    règle `.bandeau-tx b` qui précède colore tous les `b` en accent, et
    le badge serait sorti accent sur accent, illisible. */
@@ -1302,7 +1310,7 @@ body.page .bandeau + .crumb{margin-top:0}
   .bandeau.offre .of-court{display:block;margin-top:2px}
   /* La voiture rétrécit plutôt que de disparaître : elle coûte alors
      56 px sur la première ligne, pas une ligne entière. */
-  .bandeau-noel{width:56px;height:21px}
+  .bandeau-noel{width:56px;height:21px;vertical-align:-6px;margin-right:9px}
   .bandeau-tel{display:none}
   .bandeau ~ .view .open{padding-top:26px}
 }
