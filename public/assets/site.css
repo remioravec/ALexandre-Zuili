@@ -1260,6 +1260,35 @@ body.page .crumb{margin-top:var(--h-top)}
   color:var(--bone-dim);font-size:20px;line-height:1;cursor:pointer}
 .bandeau-x:hover{color:var(--bone);border-color:var(--line)}
 .bandeau-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* Offre de fin d'année. Tout est masqué par l'attribut `hidden` dans le
+   HTML et n'apparaît que si le JS retire cet attribut et pose `.offre`,
+   ce qu'il ne fait qu'avant l'échéance : sans JavaScript, et après le
+   25 décembre, le bandeau n'annonce aucune remise. D'où des règles
+   d'affichage toutes portées par `.bandeau.offre`, car une règle
+   `display` l'emporterait sur `[hidden]`. */
+/* Le père Noël suit exactement le sort de l'offre : même attribut
+   `hidden`, même révélation par le JS, donc il disparaît tout seul le
+   25 décembre avec le reste du dispositif. */
+/* `display:none` écrit noir sur blanc : l'attribut `hidden` du HTML ne
+   masque PAS un élément SVG — la règle d'agent utilisateur `[hidden]`
+   ne vise que les éléments HTML. Sans cette ligne la voiture restait
+   affichée après l'échéance, et dès avant l'exécution du JS. Mesuré,
+   pas supposé. */
+.bandeau-noel{display:none;width:76px;height:28px;vertical-align:-8px;margin-right:12px}
+/* Dans le flux du texte, et non élément flex : en élément flex il
+   s'emparait d'une ligne entière sous 860 px, 29 px de bandeau pour
+   une voiture de 21. */
+.bandeau.offre .bandeau-noel{display:inline-block}
+/* Sélecteur porté par `.bandeau-tx`, et non par la seule classe : la
+   règle `.bandeau-tx b` qui précède colore tous les `b` en accent, et
+   le badge serait sorti accent sur accent, illisible. */
+.bandeau-tx b.bandeau-pc{margin-right:11px;padding:3px 9px;background:var(--accent);
+  color:#11160f;font-size:12px;letter-spacing:.06em;white-space:nowrap}
+.bandeau.offre .bandeau-tx b.bandeau-pc{display:inline-block}
+.bandeau-of{color:var(--bone)}
+.bandeau .of-court{display:none}
+/* La question n'a plus sa place quand la ligne porte déjà une échéance. */
+.bandeau.offre .bandeau-q{display:none}
 body.page .bandeau + .crumb{margin-top:0}
 .bandeau ~ .view .open{padding-top:clamp(30px,5vw,56px)}
 @media(max-width:860px){
@@ -1275,6 +1304,23 @@ body.page .bandeau + .crumb{margin-top:0}
   .bandeau-tx{font-size:13.5px}
   .bandeau .d-long{display:none}
   .bandeau .d-court{display:inline}
+  /* L'échéance passe sur sa propre ligne : la lire d'un coup d'œil vaut
+     les 19 px que coûte la ligne. */
+  .bandeau.offre .of-long{display:none}
+  .bandeau.offre .of-court{display:block;margin-top:2px}
+  /* La voiture rétrécit plutôt que de disparaître : elle coûte alors
+     56 px sur la première ligne, pas une ligne entière. */
+  .bandeau-noel{width:56px;height:21px;vertical-align:-6px;margin-right:9px}
   .bandeau-tel{display:none}
   .bandeau ~ .view .open{padding-top:26px}
+}
+/* Sous 380 px — iPhone SE et compagnie — chaque ligne compte : la
+   mention « Saison 2027 » part, car « jusqu'en octobre 2027 » dit déjà
+   l'année, et la voiture rétrécit encore. */
+@media(max-width:380px){
+  .bandeau-tx{font-size:13px}
+  .bandeau.offre .bandeau-sz{display:none}
+  .bandeau.offre .bandeau-tx .sep{display:none}
+  .bandeau-noel{width:48px;height:18px;vertical-align:-5px;margin-right:8px}
+  .bandeau-tx b.bandeau-pc{margin-right:9px;padding:2px 7px;font-size:11px}
 }

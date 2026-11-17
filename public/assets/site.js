@@ -732,7 +732,10 @@
        héros et à la miette leurs marges d'origine (voir site.css).
        localStorage peut lever — navigation privée, stockage bloqué — et
        l'affichage n'en dépend jamais. */
-    const CLE='drs-bandeau-2027';
+    /* Clé changée en même temps que le contenu : un visiteur qui avait
+       fermé le bandeau des seules dates doit revoir celui qui porte
+       l'offre. */
+    const CLE='drs-bandeau-2027-offre';
     let ferme=false;
     try{ferme=localStorage.getItem(CLE)==='ferme';}catch(e){}
     if(ferme){b.remove();return;}
@@ -746,6 +749,19 @@
        HTML : une case cochée ou décochée dans Notion se répercute ici au
        prochain chargement. Si l'API ne répond pas, la phrase sans chiffre
        écrite dans le HTML reste affichée — elle est vraie dans tous les cas. */
+    /* Échéance de l'offre, écrite une seule fois. Passée cette date, le
+       badge et la clause restent masqués et le bandeau redevient celui
+       des seules dates : aucune remise périmée ne reste affichée, sans
+       intervention. « avant le 25 décembre » est pris au mot — l'annonce
+       cesse à l'entrée dans le 25, heure de Paris. */
+    const FIN_OFFRE=Date.parse('2026-12-25T00:00:00+01:00');
+    if(Date.now()<FIN_OFFRE){
+      b.classList.add('offre');
+      const parts=b.querySelectorAll('[data-bandeau-offre]');
+      for(let i=0;i<parts.length;i++)parts[i].removeAttribute('hidden');
+      b.setAttribute('aria-label','Saison 2027 et offre de fin d\u2019année');
+    }
+
     const cible=b.querySelector('[data-bandeau-dates]'),court=b.querySelector('[data-bandeau-court]');
     if(!cible&&!court)return;
     const MOIS=['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
