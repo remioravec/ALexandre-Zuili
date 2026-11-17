@@ -1266,6 +1266,11 @@ body.page .crumb{margin-top:var(--h-top)}
    25 décembre, le bandeau n'annonce aucune remise. D'où des règles
    d'affichage toutes portées par `.bandeau.offre`, car une règle
    `display` l'emporterait sur `[hidden]`. */
+/* Le père Noël suit exactement le sort de l'offre : même attribut
+   `hidden`, même révélation par le JS, donc il disparaît tout seul le
+   25 décembre avec le reste du dispositif. */
+.bandeau-noel{flex:none;width:76px;height:28px}
+.bandeau.offre .bandeau-noel{display:block}
 /* Sélecteur porté par `.bandeau-tx`, et non par la seule classe : la
    règle `.bandeau-tx b` qui précède colore tous les `b` en accent, et
    le badge serait sorti accent sur accent, illisible. */
@@ -1295,6 +1300,9 @@ body.page .bandeau + .crumb{margin-top:0}
      les 19 px que coûte la ligne. */
   .bandeau.offre .of-long{display:none}
   .bandeau.offre .of-court{display:block;margin-top:2px}
+  /* La voiture rétrécit plutôt que de disparaître : elle coûte alors
+     56 px sur la première ligne, pas une ligne entière. */
+  .bandeau-noel{width:56px;height:21px}
   .bandeau-tel{display:none}
   .bandeau ~ .view .open{padding-top:26px}
 }
