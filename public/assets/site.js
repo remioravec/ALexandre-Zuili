@@ -720,6 +720,55 @@
     }
   })();
 
+  /* ═══ vidéos Instagram ════════════════════════════════════════════════
+     Bloc autonome : il vit sur l'accueil et sur /le-moniteur/, et sort
+     sans rien faire ailleurs. L'iframe n'est construite qu'au clic — tant
+     que le visiteur n'ouvre rien, aucune requête ne part chez Instagram. */
+  (function(){
+    const boutons=document.querySelectorAll('.ig-go[data-ig]');
+    const boite=document.getElementById('igbox');
+    if(!boutons.length||!boite)return;
+    const cadre=document.getElementById('igboxF'),croix=document.getElementById('igboxX');
+    if(!cadre||!croix)return;
+    let appelant=null;
+
+    function ouvrir(code,titre,source){
+      const f=document.createElement('iframe');
+      f.src='https://www.instagram.com/p/'+code+'/embed/';
+      f.title=titre||'Vidéo Instagram';
+      f.loading='lazy';
+      f.allowFullscreen=true;
+      f.setAttribute('scrolling','no');
+      f.setAttribute('allow','encrypted-media; picture-in-picture; fullscreen');
+      cadre.textContent='';
+      cadre.appendChild(f);
+      boite.classList.add('on');
+      document.body.classList.add('locked');
+      appelant=source;
+      croix.focus();
+    }
+    /* Vider la boîte détruit l'iframe : le son s'arrête et la connexion
+       chez Instagram se ferme, au lieu de tourner en arrière-plan. */
+    function fermer(){
+      if(!boite.classList.contains('on'))return;
+      boite.classList.remove('on');
+      document.body.classList.remove('locked');
+      cadre.textContent='';
+      if(appelant){appelant.focus();appelant=null;}
+    }
+
+    for(let i=0;i<boutons.length;i++){
+      boutons[i].addEventListener('click',function(){
+        ouvrir(this.getAttribute('data-ig'),this.getAttribute('aria-label'),this);
+      });
+    }
+    croix.addEventListener('click',fermer);
+    boite.addEventListener('click',function(e){
+      if(e.target.hasAttribute('data-ig-fermer'))fermer();
+    });
+    document.addEventListener('keydown',function(e){ if(e.key==='Escape')fermer(); });
+  })();
+
   /* ═══ bandeau de saison ═══════════════════════════════════════════════
      Bloc autonome, et non greffé sur celui du tunnel : ce dernier sort
      dès que #rv est absent, donc sur les cinq pages réelles, où le
